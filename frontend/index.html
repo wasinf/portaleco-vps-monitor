@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Infra Dashboard - VPS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #edf4ff;
+      --card: #f8fbff;
+      --ink: #152a44;
+      --muted: #5a7596;
+      --accent: #1f6fca;
+      --ok: #2f7f5d;
+      --warn: #b58a2f;
+      --bad: #aa4e4e;
+      --line: #d7e6f7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(180deg, #f3f8ff, var(--bg));
+      color: var(--ink);
+      padding: 34px 28px;
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .top-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      width: 100%;	
+    }
+
+    .top-stack > .hero,
+    .top-stack > .card {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      justify-self: stretch;
+     }
+ 
+     /* garante que o card Sistema no topo use a largura toda */
+     .top-stack > .card {
+       grid-column: 1 / -1;
+     }
+
+    .hero {
+      border-radius: 18px;
+      padding: 18px;
+      background:
+        linear-gradient(135deg, rgba(13,79,153,0.18), rgba(31,111,202,0.16)),
+        url("/img/hero-infra.png") center center/cover no-repeat;
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 68px;
+      line-height: 1.02;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: 0.98;
+      font-size: 30px;
+      line-height: 1.15;
+      max-width: 900px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .card {
+      grid-column: span 6;
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.06);
+      min-width: 0;
+    }
+
+    .card.full { grid-column: span 12; }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 28px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .ok { background: var(--ok); }
+    .warn { background: var(--warn); }
+    .bad { background: var(--bad); }
+
+    table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 8px 10px;
+      vertical-align: middle;
+    }
+
+    th { background: #e7f0fb; }
+
+    #dockerRows td:nth-child(1),
+    #dockerRows td:nth-child(2),
+    #dockerRows td:nth-child(3),
+    #dockerRows td:nth-child(5) {
+      white-space: nowrap;
+    }
+
+    #dockerRows td:nth-child(4) {
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .st {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: bold;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .st-run {
+      background: #d9ebff;
+      color: #0f4f99;
+      border: 1px solid #9dc5f2;
+    }
+
+    .st-stop {
+      background: #ffe0e0;
+      color: #9b2c2c;
+      border: 1px solid #f0b3b3;
+    }
+
+    .services {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .service-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .sys-top {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .sys-specs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .spec {
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 12px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .spec-label {
+      color: #3e4652;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .spec-value {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.15;
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;    
+    }
+
+    @media (max-width: 900px) {
+      .hero { min-height: 180px; padding: 24px 18px; }
+      .hero h1 { font-size: 44px; }
+      .hero p { font-size: 24px; }
+
+      .card, .card.full { grid-column: span 12; }
+      .sys-specs { grid-template-columns: 1fr; }
+      .services { grid-template-columns: 1fr; }
+    }
+
+/* Alinhar largura do banner com o card Sistema */
+.page .top-stack {
+  width: 100% !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.page .top-stack > .hero {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  grid-column: 1 / -1 !important;
+  justify-self: stretch !important;
+  margin: 0 !important;
+}
+
+
+
+
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="top-stack">
+      <section class="hero">
+        <h1>Infra Dashboard</h1>
+        <p>Monitoramento da VPS e serviços críticos</p>
+      </section>
+
+      <article class="card full">
+        <h2>Sistema</h2>
+        <div class="sys-top" id="sysMeta">Carregando...</div>
+        <div class="sys-specs">
+          <div class="spec">
+            <div class="spec-label">CPU</div>
+            <div class="spec-value" id="cpuSpec">--</div>
+          </div>
+          <div class="spec">
+            <div class="spec-label">RAM</div>
+            <div class="spec-value" id="ramSpec">--</div>
+          </div>
+          <div class="spec">
+            <div class="spec-label">Armazenamento</div>
+            <div class="spec-value" id="diskSpec">--</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="grid">
+      <article class="card">
+        <h2>Tunnel / Firebird</h2>
+        <div id="tunnelLine" class="meta">Tunnel: ...</div>
+        <div id="firebirdLine" class="meta" style="margin-top:8px;">Firebird: ...</div>
+      </article>
+
+      <article class="card full">
+        <h2>Serviços críticos</h2>
+        <div class="services" id="services"></div>
+      </article>
+
+      <article class="card full">
+        <h2>Containers Docker</h2>
+        <div class="meta" id="dockerMeta">Carregando...</div>
+        <div style="margin-top:10px; overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Status</th>
+                <th>Imagem</th>
+                <th>Ports</th>
+                <th>Rede</th>
+              </tr>
+            </thead>
+            <tbody id="dockerRows"></tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+
+    <div class="footer" id="updatedAt">Atualizando...</div>
+  </div>
+
+  <script>
+    const fmtBytes = (n) => {
+      const num = Number(n || 0);
+      if (num <= 0) return "0 B";
+      const u = ["B","KB","MB","GB","TB"];
+      let i = 0, v = num;
+      while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+      return v.toFixed(i === 0 ? 0 : 2) + " " + u[i];
+    };
+
+    const fmtNum = (n) => Number(n || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+    const toGb = (n) => Number(n || 0) / (1024 ** 3);
+    const toMb = (n) => Number(n || 0) / (1024 ** 2);
+
+    const dot = (ok) =>
+      '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
+
+    async function load() {
+      try {
+        const [systemRes, dockerRes, servicesRes, firebirdRes, tunnelRes] = await Promise.all([
+          fetch("/api/system"),
+          fetch("/api/docker"),
+          fetch("/api/services"),
+          fetch("/api/firebird"),
+          fetch("/api/tunnel")
+        ]);
+
+        const system = await systemRes.json();
+        const docker = await dockerRes.json();
+        const services = await servicesRes.json();
+        const firebird = await firebirdRes.json();
+        const tunnel = await tunnelRes.json();
+
+        document.getElementById("cpuSpec").textContent = String(system.cpu_cores || 4);
+        document.getElementById("ramSpec").textContent =
+          `${fmtNum(toGb(system.memory?.total))} GB / ${fmtNum(toMb(system.memory?.used))} MB`;
+        document.getElementById("diskSpec").textContent =
+          `${fmtNum(toGb(system.disk?.total))} GB / ${fmtNum(toGb(system.disk?.used))} GB`;
+
+        document.getElementById("sysMeta").textContent =
+          "Host: " + (system.hostname || "-") +
+          " | Uptime: " + (system.uptime_seconds || 0) + "s" +
+          " | RAM: " + fmtBytes(system.memory?.used) + " / " + fmtBytes(system.memory?.total) +
+          " | Disco: " + fmtBytes(system.disk?.used) + " / " + fmtBytes(system.disk?.total);
+
+        document.getElementById("tunnelLine").innerHTML =
+          "Tunnel: " + dot(Boolean(tunnel.running)) + " | Registrado: " + (tunnel.registered ? "Sim" : "Não");
+
+        document.getElementById("firebirdLine").innerHTML =
+          "Firebird: " + dot(Boolean(firebird.ok)) + " | Versão: " + (firebird.version || "-") +
+          " | Resp: " + (firebird.response_ms ?? "-") + " ms";
+
+        const serviceNames = ["chalana-api","firebird25","nginx-proxy-manager","cloudflared"];
+        const servicesEl = document.getElementById("services");
+        servicesEl.innerHTML = serviceNames.map((name) => {
+          const up = Boolean(services.services && services.services[name]);
+          return '<div class="service-item"><strong>' + name + '</strong><span>' + dot(up) + '</span></div>';
+        }).join("");
+
+        document.getElementById("dockerMeta").textContent =
+          "Total: " + (docker.total || 0) + " | Running: " + (docker.running || 0);
+
+        const rows = (docker.containers || []).map((c) =>
+          "<tr>" +
+            "<td>" + (c.name || "") + "</td>" +
+            "<td>" + (c.running
+              ? "<span class='st st-run'>Iniciado</span>"
+              : "<span class='st st-stop'>Parado</span>") + "</td>" +
+            "<td>" + (c.image || "") + "</td>" +
+            "<td>" + (c.ports || "") + "</td>" +
+            "<td>" + (c.network || "") + "</td>" +
+          "</tr>"
+        ).join("");
+
+        document.getElementById("dockerRows").innerHTML =
+          rows || "<tr><td colspan='5'>Sem dados</td></tr>";
+
+        document.getElementById("updatedAt").textContent =
+          "Atualizado em: " + new Date().toLocaleString("pt-BR");
+      } catch (e) {
+        document.getElementById("updatedAt").textContent = "Erro ao atualizar: " + e.message;
+      }
+    }
+
+    load();
+    setInterval(load, 10000);
+  </script>
+</body>
+</html>
