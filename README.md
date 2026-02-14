@@ -69,6 +69,13 @@ Script em `deploy.sh` com suporte a:
 - `./deploy.sh prod`
 - `./deploy.sh staging`
 
+O script faz smoke test automatico apos subir:
+
+- API: `GET /health`
+- Frontend: `GET /`
+
+Se algum teste falhar, o deploy termina com erro.
+
 ## Endpoints de autenticação
 
 - `POST /api/auth/login`
