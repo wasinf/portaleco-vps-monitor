@@ -31,6 +31,81 @@
       min-height: 100vh;
     }
 
+    .auth-shell {
+      max-width: 420px;
+      margin: 8vh auto 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 16px 30px rgba(0,0,0,0.08);
+      padding: 18px;
+    }
+
+    .auth-shell h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .auth-msg {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+
+    .auth-label {
+      display: block;
+      font-weight: 600;
+      margin: 10px 0 6px;
+      font-size: 14px;
+    }
+
+    .auth-input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    .auth-btn {
+      margin-top: 14px;
+      width: 100%;
+      border: 1px solid #0f4f99;
+      background: #1f6fca;
+      color: #fff;
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .session-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .session-user {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .logout-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
     .page {
       max-width: 1100px;
       margin: 0 auto;
@@ -274,13 +349,26 @@
   </style>
 </head>
 <body>
-  <div class="page">
+  <section class="auth-shell" id="loginView">
+    <h2>Acesso ao Monitor</h2>
+    <div class="auth-msg" id="loginMsg">Informe suas credenciais para continuar.</div>
+    <form id="loginForm">
+      <label class="auth-label" for="usernameInput">Usuário</label>
+      <input class="auth-input" id="usernameInput" name="username" autocomplete="username" required />
+      <label class="auth-label" for="passwordInput">Senha</label>
+      <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
+      <button class="auth-btn" id="loginBtn" type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <div class="page" id="dashboardView" style="display:none;">
+    <div class="session-bar">
+      <span class="session-user" id="sessionUser"></span>
+      <button class="logout-btn" id="logoutBtn" type="button">Sair</button>
+    </div>
     <section class="top-stack">
       <section class="hero">
         <h1>Monitor VPS</h1>
-        <p style="font-size:18px;opacity:0.85;margin-top:8px;">
-          Versão 1.1 - Atualização Visual
-        </p>
         <p>Monitoramento do Servidor - VPS</p>
       </section>
 
@@ -340,6 +428,10 @@
   </div>
 
   <script>
+    const TOKEN_KEY = "portaleco_vps_monitor_token";
+    const USER_KEY = "portaleco_vps_monitor_user";
+    let pollHandle = null;
+
     const fmtBytes = (n) => {
       const num = Number(n || 0);
       if (num <= 0) return "0 B";
@@ -360,14 +452,68 @@
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
 
+    const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
+    const getUser = () => localStorage.getItem(USER_KEY) || "";
+
+    const setSession = (token, username) => {
+      if (token) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+
+      if (username) localStorage.setItem(USER_KEY, username);
+      else localStorage.removeItem(USER_KEY);
+    };
+
+    const setLoginMessage = (message, isError = false) => {
+      const el = document.getElementById("loginMsg");
+      el.textContent = message;
+      el.style.color = isError ? "#9b2c2c" : "var(--muted)";
+    };
+
+    const showLoginView = (message, isError = false) => {
+      document.getElementById("loginView").style.display = "block";
+      document.getElementById("dashboardView").style.display = "none";
+      setLoginMessage(message, isError);
+      if (pollHandle) {
+        clearInterval(pollHandle);
+        pollHandle = null;
+      }
+    };
+
+    const showDashboardView = () => {
+      document.getElementById("loginView").style.display = "none";
+      document.getElementById("dashboardView").style.display = "grid";
+      const user = getUser();
+      document.getElementById("sessionUser").textContent = user ? ("Usuário: " + user) : "";
+      if (!pollHandle) {
+        pollHandle = setInterval(load, 10000);
+      }
+    };
+
+    async function apiFetch(path, options = {}) {
+      const token = getToken();
+      const headers = new Headers(options.headers || {});
+      if (token) {
+        headers.set("Authorization", "Bearer " + token);
+      }
+
+      const response = await fetch(path, { ...options, headers });
+      if (response.status === 401) {
+        const err = new Error("Sessão expirada. Faça login novamente.");
+        err.authError = true;
+        throw err;
+      }
+
+      return response;
+    }
+
     async function load() {
       try {
         const [systemRes, dockerRes, servicesRes, firebirdRes, tunnelRes] = await Promise.all([
-          fetch("/api/system"),
-          fetch("/api/docker"),
-          fetch("/api/services"),
-          fetch("/api/firebird"),
-          fetch("/api/tunnel")
+          apiFetch("/api/system"),
+          apiFetch("/api/docker"),
+          apiFetch("/api/services"),
+          apiFetch("/api/firebird"),
+          apiFetch("/api/tunnel")
         ]);
 
         const system = await systemRes.json();
@@ -423,12 +569,67 @@
         document.getElementById("updatedAt").textContent =
           "Atualizado em: " + new Date().toLocaleString("pt-BR");
       } catch (e) {
+        if (e.authError) {
+          setSession("", "");
+          showLoginView(e.message, true);
+          return;
+        }
         document.getElementById("updatedAt").textContent = "Erro ao atualizar: " + e.message;
       }
     }
 
-    load();
-    setInterval(load, 10000);
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const username = document.getElementById("usernameInput").value.trim();
+      const password = document.getElementById("passwordInput").value;
+      const button = document.getElementById("loginBtn");
+      button.disabled = true;
+      setLoginMessage("Autenticando...");
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Falha de autenticação");
+        }
+
+        if (data.auth_enabled === false) {
+          setSession("", username || "local");
+          showDashboardView();
+          await load();
+          return;
+        }
+
+        if (!data.token) {
+          throw new Error("Token não recebido no login.");
+        }
+
+        setSession(data.token, data.user?.username || username);
+        showDashboardView();
+        await load();
+      } catch (error) {
+        setLoginMessage(error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      setSession("", "");
+      showLoginView("Sessão encerrada.");
+    });
+
+    if (getToken()) {
+      showDashboardView();
+      load();
+    } else {
+      showLoginView("Informe suas credenciais para continuar.");
+    }
   </script>
 </body>
 </html>
