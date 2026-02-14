@@ -15,10 +15,62 @@ const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "change-me";
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || "change-this-token-secret";
 const AUTH_TOKEN_TTL_SECONDS = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 12);
 const AUTH_DB_PATH = process.env.AUTH_DB_PATH || "/data/auth.db";
+const LOG_LEVEL = process.env.LOG_LEVEL || "info";
 const authStore = openAuthStore(AUTH_DB_PATH);
+
+const newRequestId = () => {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return crypto.randomBytes(16).toString("hex");
+};
+
+const toLatencyMs = (startNs) => {
+  const elapsed = process.hrtime.bigint() - startNs;
+  return Number(elapsed) / 1e6;
+};
+
+const clientIp = (req) => {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.trim()) {
+    return fwd.split(",")[0].trim();
+  }
+  return req.socket?.remoteAddress || req.ip || "";
+};
+
+const logJson = (level, payload) => {
+  const record = {
+    ts: new Date().toISOString(),
+    level,
+    service: "portaleco-vps-monitor-backend",
+    ...payload
+  };
+  console.log(JSON.stringify(record));
+};
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  const startNs = process.hrtime.bigint();
+  const requestId = newRequestId();
+  req.requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+
+  res.on("finish", () => {
+    if (LOG_LEVEL === "silent") return;
+    logJson("info", {
+      event: "http_request",
+      request_id: requestId,
+      method: req.method,
+      path: req.originalUrl || req.url,
+      status: res.statusCode,
+      latency_ms: Number(toLatencyMs(startNs).toFixed(2)),
+      ip: clientIp(req),
+      user: req.auth?.sub || null,
+      role: req.auth?.role || null
+    });
+  });
+
+  next();
+});
 app.use(express.static("/workspace/frontend"));
 
 const base64UrlEncode = (value) =>

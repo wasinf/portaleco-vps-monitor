@@ -84,3 +84,13 @@ Se algum teste falhar, o deploy termina com erro.
 - `GET /api/auth/users` (admin)
 - `POST /api/auth/users` (admin)
 - `PATCH /api/auth/users/:username/active` (admin)
+
+## Observabilidade
+
+Backend gera logs estruturados em JSON por requisicao com:
+
+- `request_id` (tambem enviado no header `x-request-id`)
+- metodo, path, status, latencia (`latency_ms`)
+- IP de origem e usuario autenticado (quando existir)
+
+Para silenciar logs HTTP: `LOG_LEVEL=silent`.
