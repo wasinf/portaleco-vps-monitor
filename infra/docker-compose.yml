@@ -1,0 +1,35 @@
+name: portaleco-vps-monitor
+
+services:
+
+  portaleco-vps-monitor-backend:
+    build:
+      context: ../backend
+    container_name: portaleco-vps-monitor-backend
+    environment:
+      - HOST_HOSTNAME=45.233.60.55
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - proxy
+      - npm-network
+
+  portaleco-vps-monitor-frontend:
+    build:
+      context: ../frontend
+    container_name: portaleco-vps-monitor-frontend
+    ports:
+      - "127.0.0.1:4001:80"
+    restart: unless-stopped
+    networks:
+      - proxy
+      - npm-network
+
+networks:
+  proxy:
+    external: true
+  npm-network:
+    external: true
