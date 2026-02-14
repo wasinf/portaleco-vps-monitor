@@ -106,6 +106,57 @@
       cursor: pointer;
     }
 
+    .gear-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .users-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 42, 68, 0.42);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 40;
+    }
+
+    .users-modal.open {
+      display: flex;
+    }
+
+    .users-panel {
+      width: min(980px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+      padding: 14px;
+    }
+
+    .users-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
+    .users-panel-head h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
     .users-toolbar {
       display: flex;
       gap: 8px;
@@ -418,6 +469,7 @@
     <div class="session-bar">
       <span class="session-user" id="sessionUser"></span>
       <button class="logout-btn" id="changePasswordBtn" type="button">Trocar senha</button>
+      <button class="gear-btn" id="openUsersModalBtn" type="button" title="Configuração de usuários" style="display:none;">&#9881;</button>
       <button class="logout-btn" id="logoutBtn" type="button">Sair</button>
     </div>
     <section class="top-stack">
@@ -458,43 +510,6 @@
         <div class="services" id="services"></div>
       </article>
 
-      <article class="card full" id="usersCard" style="display:none;">
-        <h2>Usuários</h2>
-        <div class="users-toolbar">
-          <div class="users-field">
-            <label for="newUsername">Usuário</label>
-            <input id="newUsername" placeholder="ex: suporte.portaleco" />
-          </div>
-          <div class="users-field">
-            <label for="newPassword">Senha inicial</label>
-            <input id="newPassword" type="password" placeholder="mínimo 8 caracteres" />
-          </div>
-          <div class="users-field" style="max-width:160px;">
-            <label for="newRole">Perfil</label>
-            <select id="newRole">
-              <option value="viewer">viewer</option>
-              <option value="admin">admin</option>
-            </select>
-          </div>
-          <button class="primary-btn" id="createUserBtn" type="button">Criar usuário</button>
-        </div>
-        <div class="meta" id="usersMeta">Carregando usuários...</div>
-        <div style="margin-top:10px; overflow:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Usuário</th>
-                <th>Perfil</th>
-                <th>Status</th>
-                <th>Atualizado</th>
-                <th>Ação</th>
-              </tr>
-            </thead>
-            <tbody id="usersRows"></tbody>
-          </table>
-        </div>
-      </article>
-
       <article class="card full">
         <h2>Containers Docker</h2>
         <div class="meta" id="dockerMeta">Carregando...</div>
@@ -517,6 +532,48 @@
 
     <div class="footer" id="updatedAt">Atualizando...</div>
   </div>
+
+  <section class="users-modal" id="usersModal" aria-hidden="true">
+    <article class="users-panel">
+      <div class="users-panel-head">
+        <h2>Usuários</h2>
+        <button class="logout-btn" id="closeUsersModalBtn" type="button">Fechar</button>
+      </div>
+      <div class="users-toolbar">
+          <div class="users-field">
+            <label for="newUsername">Usuário</label>
+            <input id="newUsername" placeholder="ex: suporte.portaleco" />
+          </div>
+          <div class="users-field">
+            <label for="newPassword">Senha inicial</label>
+            <input id="newPassword" type="password" placeholder="mínimo 8 caracteres" />
+          </div>
+          <div class="users-field" style="max-width:160px;">
+            <label for="newRole">Perfil</label>
+            <select id="newRole">
+              <option value="viewer">viewer</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <button class="primary-btn" id="createUserBtn" type="button">Criar usuário</button>
+        <div class="meta" id="usersMeta">Carregando usuários...</div>
+        <div style="margin-top:10px; overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Atualizado</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="usersRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+  </section>
 
   <script>
     const TOKEN_KEY = "portaleco_vps_monitor_token";
@@ -547,6 +604,8 @@
     const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
     const getUser = () => localStorage.getItem(USER_KEY) || "";
     const getRole = () => localStorage.getItem(USER_ROLE_KEY) || "";
+    const isAdmin = () => getRole() === "admin";
+    const usersModalEl = document.getElementById("usersModal");
 
     const setSession = (token, username, role) => {
       if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -582,7 +641,8 @@
       const role = getRole();
       document.getElementById("sessionUser").textContent =
         user ? ("Usuário: " + user + (role ? " (" + role + ")" : "")) : "";
-      document.getElementById("usersCard").style.display = role === "admin" ? "block" : "none";
+      document.getElementById("openUsersModalBtn").style.display = isAdmin() ? "inline-flex" : "none";
+      closeUsersModal();
       if (!pollHandle) {
         pollHandle = setInterval(load, 10000);
       }
@@ -668,7 +728,7 @@
         document.getElementById("updatedAt").textContent =
           "Atualizado em: " + new Date().toLocaleString("pt-BR");
 
-        if (getRole() === "admin") {
+        if (isAdmin() && usersModalEl.classList.contains("open")) {
           await loadUsers();
         }
       } catch (e) {
@@ -682,6 +742,7 @@
     }
 
     async function loadUsers() {
+      if (!isAdmin()) return;
       try {
         const response = await apiFetch("/api/auth/users");
         const data = await response.json();
@@ -785,6 +846,32 @@
         window.alert("Senha alterada com sucesso.");
       } catch (error) {
         window.alert(error.message || "Falha ao alterar senha.");
+      }
+    });
+
+    const openUsersModal = async () => {
+      if (!isAdmin()) return;
+      usersModalEl.classList.add("open");
+      usersModalEl.setAttribute("aria-hidden", "false");
+      await loadUsers();
+    };
+
+    const closeUsersModal = () => {
+      usersModalEl.classList.remove("open");
+      usersModalEl.setAttribute("aria-hidden", "true");
+    };
+
+    document.getElementById("openUsersModalBtn").addEventListener("click", () => {
+      openUsersModal();
+    });
+
+    document.getElementById("closeUsersModalBtn").addEventListener("click", () => {
+      closeUsersModal();
+    });
+
+    usersModalEl.addEventListener("click", (event) => {
+      if (event.target === usersModalEl) {
+        closeUsersModal();
       }
     });
 
