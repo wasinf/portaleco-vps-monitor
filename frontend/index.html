@@ -601,6 +601,7 @@
       justify-content: space-between;
       gap: 10px;
       margin-bottom: 8px;
+      flex-wrap: wrap;
     }
 
     .ram-chart-title {
@@ -613,6 +614,27 @@
       font-size: 13px;
       color: var(--muted);
       white-space: nowrap;
+    }
+
+    .ram-chart-legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: #3f5f85;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      display: inline-block;
     }
 
     #ramChartCanvas {
@@ -704,7 +726,12 @@
         </div>
         <div class="ram-chart-wrap">
           <div class="ram-chart-head">
-            <div class="ram-chart-title">Oscilação da RAM (tempo real)</div>
+            <div class="ram-chart-title">Oscilação em tempo real (RAM, CPU, Armazenamento)</div>
+            <div class="ram-chart-legend">
+              <span class="legend-item"><span class="legend-dot" style="background:#2f6fb6;"></span>RAM</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#d9822b;"></span>CPU</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#2d9a6b;"></span>Armazenamento</span>
+            </div>
             <div class="ram-chart-meta" id="ramChartMeta">Coletando amostras...</div>
           </div>
           <canvas id="ramChartCanvas"></canvas>
@@ -867,11 +894,25 @@
       if (el) el.textContent = message;
     };
 
-    const recordRamSample = (usedBytes, totalBytes) => {
-      const used = Number(usedBytes || 0);
-      const total = Number(totalBytes || 0);
-      if (!used || !total) return;
-      ramHistory.push({ t: Date.now(), used, total });
+    const clampPercent = (value) => {
+      const num = Number(value || 0);
+      if (!Number.isFinite(num)) return 0;
+      return Math.max(0, Math.min(100, num));
+    };
+
+    const recordRamSample = (system) => {
+      const ramUsed = Number(system?.memory?.used || 0);
+      const ramTotal = Number(system?.memory?.total || 0);
+      if (!ramUsed || !ramTotal) return;
+
+      ramHistory.push({
+        t: Date.now(),
+        ramUsed,
+        ramTotal,
+        ramPct: clampPercent(system?.memory?.percent),
+        cpuPct: clampPercent(system?.cpu_percent),
+        diskPct: clampPercent(system?.disk?.percent)
+      });
       while (ramHistory.length > RAM_HISTORY_MAX_POINTS) {
         ramHistory.shift();
       }
@@ -914,52 +955,58 @@
       }
 
       const points = ramHistory.map((s) => ({
-        used: s.used,
-        total: s.total,
-        pct: (s.used / s.total) * 100
+        ramPct: s.ramPct,
+        cpuPct: s.cpuPct,
+        diskPct: s.diskPct,
+        ramUsed: s.ramUsed,
+        ramTotal: s.ramTotal
       }));
-      const minPct = Math.max(0, Math.min(...points.map((p) => p.pct)) - 2);
-      const maxPct = Math.min(100, Math.max(...points.map((p) => p.pct)) + 2);
-      const span = Math.max(1, maxPct - minPct);
+      const minPct = 0;
+      const maxPct = 100;
+      const span = 100;
 
       const toX = (i) => pad.left + (i * plotW) / Math.max(1, points.length - 1);
       const toY = (pct) => pad.top + (1 - (pct - minPct) / span) * plotH;
 
-      ctx.beginPath();
-      points.forEach((p, i) => {
-        const x = toX(i);
-        const y = toY(p.pct);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#2f6fb6";
-      ctx.stroke();
+      const drawSeries = (key, color) => {
+        ctx.beginPath();
+        points.forEach((p, i) => {
+          const x = toX(i);
+          const y = toY(p[key]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      };
 
-      ctx.lineTo(toX(points.length - 1), pad.top + plotH);
-      ctx.lineTo(toX(0), pad.top + plotH);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(47, 111, 182, 0.12)";
-      ctx.fill();
+      drawSeries("ramPct", "#2f6fb6");
+      drawSeries("cpuPct", "#d9822b");
+      drawSeries("diskPct", "#2d9a6b");
 
       const last = points[points.length - 1];
-      const lx = toX(points.length - 1);
-      const ly = toY(last.pct);
-      ctx.beginPath();
-      ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = "#12549e";
-      ctx.fill();
+      const markLast = (pct, color) => {
+        const lx = toX(points.length - 1);
+        const ly = toY(pct);
+        ctx.beginPath();
+        ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      };
+      markLast(last.ramPct, "#2f6fb6");
+      markLast(last.cpuPct, "#d9822b");
+      markLast(last.diskPct, "#2d9a6b");
 
       ctx.fillStyle = "#3f5f85";
       ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-      ctx.fillText(minPct.toFixed(1) + "%", pad.left, height - 5);
-      const maxText = maxPct.toFixed(1) + "%";
+      ctx.fillText(minPct.toFixed(0) + "%", pad.left, height - 5);
+      const maxText = maxPct.toFixed(0) + "%";
       const maxTextWidth = ctx.measureText(maxText).width;
       ctx.fillText(maxText, width - pad.right - maxTextWidth, height - 5);
 
       setRamChartMeta(
-        "Uso atual: " + fmtNum(toGb(last.used)) + " GB / " + fmtNum(toGb(last.total)) + " GB" +
-        " (" + last.pct.toFixed(1) + "%)"
+        "RAM: " + last.ramPct.toFixed(1) + "% | CPU: " + last.cpuPct.toFixed(1) + "% | Armazenamento: " + last.diskPct.toFixed(1) + "%"
       );
     };
 
@@ -970,7 +1017,7 @@
           const systemRes = await apiFetch("/api/system");
           const system = await parseJsonResponse(systemRes);
           if (!systemRes.ok) return;
-          recordRamSample(system.memory?.used, system.memory?.total);
+          recordRamSample(system);
         } catch (_) {
           // silencioso para não poluir UI; o polling principal já exibe erro global
         }
@@ -1136,7 +1183,7 @@
         document.getElementById("sysUptime").textContent =
           "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds) +
           " | Iniciado em: " + fmtDateTime(startedAt);
-        recordRamSample(system.memory?.used, system.memory?.total);
+        recordRamSample(system);
 
         const serviceCards = [
           {
