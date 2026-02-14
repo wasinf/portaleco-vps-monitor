@@ -275,6 +275,47 @@ const sh = (cmd) =>
     });
   });
 
+const trafficState = {
+  containers: new Map(),
+  totals: null
+};
+
+const extractBytesFromStats = (stats) => {
+  const networks = stats && typeof stats === "object" ? stats.networks : null;
+  if (networks && typeof networks === "object") {
+    let rx = 0;
+    let tx = 0;
+    Object.values(networks).forEach((net) => {
+      rx += Number(net?.rx_bytes || 0);
+      tx += Number(net?.tx_bytes || 0);
+    });
+    return { rx, tx };
+  }
+
+  // compatibilidade com payload legado que possui apenas "network"
+  return {
+    rx: Number(stats?.network?.rx_bytes || 0),
+    tx: Number(stats?.network?.tx_bytes || 0)
+  };
+};
+
+const rateFromPrevious = (prev, current, nowMs) => {
+  if (!prev || !Number(prev.ts_ms)) {
+    return { rx_bps: 0, tx_bps: 0 };
+  }
+  const elapsedSeconds = (nowMs - Number(prev.ts_ms)) / 1000;
+  if (elapsedSeconds <= 0) {
+    return { rx_bps: 0, tx_bps: 0 };
+  }
+
+  const rxDiff = Math.max(0, Number(current.rx_bytes || 0) - Number(prev.rx_bytes || 0));
+  const txDiff = Math.max(0, Number(current.tx_bytes || 0) - Number(prev.tx_bytes || 0));
+  return {
+    rx_bps: Number((rxDiff / elapsedSeconds).toFixed(2)),
+    tx_bps: Number((txDiff / elapsedSeconds).toFixed(2))
+  };
+};
+
 app.get("/health", (req, res) => {
   return res.json({ status: "ok", service: "infra-dashboard-backend" });
 });
@@ -466,6 +507,94 @@ app.get("/api/docker", async (req, res) => {
     return res.status(500).json({
       status: "error",
       error: "Falha ao ler containers Docker",
+      detail: String(err.message || err)
+    });
+  }
+});
+
+app.get("/api/traffic", async (req, res) => {
+  try {
+    const nowMs = Date.now();
+    const containersRaw = await dockerApi("/containers/json?all=0");
+    const runningContainers = Array.isArray(containersRaw) ? containersRaw : [];
+
+    const containerTraffic = await Promise.all(
+      runningContainers.map(async (c) => {
+        const id = String(c.Id || "");
+        const name = Array.isArray(c.Names) && c.Names[0] ? c.Names[0].replace(/^\//, "") : id.slice(0, 12);
+        const stats = await dockerApi(`/containers/${id}/stats?stream=false`);
+        const bytes = extractBytesFromStats(stats);
+        const current = {
+          rx_bytes: Number(bytes.rx || 0),
+          tx_bytes: Number(bytes.tx || 0),
+          ts_ms: nowMs
+        };
+        const prev = trafficState.containers.get(id);
+        const rate = rateFromPrevious(prev, current, nowMs);
+        trafficState.containers.set(id, current);
+        return {
+          id,
+          name,
+          rx_bytes: current.rx_bytes,
+          tx_bytes: current.tx_bytes,
+          rx_bps: rate.rx_bps,
+          tx_bps: rate.tx_bps
+        };
+      })
+    );
+
+    const validIds = new Set(containerTraffic.map((c) => c.id));
+    Array.from(trafficState.containers.keys()).forEach((id) => {
+      if (!validIds.has(id)) trafficState.containers.delete(id);
+    });
+
+    const totalsCurrent = containerTraffic.reduce(
+      (acc, item) => {
+        acc.rx_bytes += Number(item.rx_bytes || 0);
+        acc.tx_bytes += Number(item.tx_bytes || 0);
+        return acc;
+      },
+      { rx_bytes: 0, tx_bytes: 0, ts_ms: nowMs }
+    );
+    const totalsRate = rateFromPrevious(trafficState.totals, totalsCurrent, nowMs);
+    trafficState.totals = totalsCurrent;
+
+    const appMap = {
+      "chalana-api": (name) => name === "chalana-api" || name === "chalana",
+      "portaleco-vps-monitor": (name) => name.startsWith("portaleco-vps-monitor")
+    };
+    const byApp = Object.entries(appMap).map(([app, matcher]) => {
+      const items = containerTraffic.filter((c) => matcher(c.name));
+      const rxBytes = items.reduce((sum, c) => sum + Number(c.rx_bytes || 0), 0);
+      const txBytes = items.reduce((sum, c) => sum + Number(c.tx_bytes || 0), 0);
+      const rxBps = items.reduce((sum, c) => sum + Number(c.rx_bps || 0), 0);
+      const txBps = items.reduce((sum, c) => sum + Number(c.tx_bps || 0), 0);
+      return {
+        app,
+        containers: items.map((c) => c.name),
+        rx_bytes: rxBytes,
+        tx_bytes: txBytes,
+        rx_bps: Number(rxBps.toFixed(2)),
+        tx_bps: Number(txBps.toFixed(2))
+      };
+    });
+
+    return res.json({
+      status: "ok",
+      generated_at: new Date(nowMs).toISOString(),
+      total: {
+        rx_bytes: totalsCurrent.rx_bytes,
+        tx_bytes: totalsCurrent.tx_bytes,
+        rx_bps: totalsRate.rx_bps,
+        tx_bps: totalsRate.tx_bps
+      },
+      applications: byApp,
+      containers: containerTraffic
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      error: "Falha ao ler trafego de rede dos containers",
       detail: String(err.message || err)
     });
   }

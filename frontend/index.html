@@ -413,6 +413,34 @@
       line-height: 1.25;
     }
 
+    .traffic-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .traffic-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+      min-width: 0;
+    }
+
+    .traffic-name {
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .traffic-metrics {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
     .api-status {
       display: flex;
       flex-direction: column;
@@ -653,6 +681,7 @@
       .card, .card.full { grid-column: span 12; }
       .sys-specs { grid-template-columns: 1fr; }
       .services { grid-template-columns: 1fr; }
+      .traffic-grid { grid-template-columns: 1fr; }
       .sys-head {
         flex-direction: column;
         align-items: flex-start;
@@ -748,6 +777,16 @@
         <div class="api-status" id="apiStatus">
           <div class="api-line">Último sucesso: <strong>aguardando</strong></div>
           <div class="api-line">Último erro: <strong>nenhum</strong></div>
+        </div>
+      </article>
+
+      <article class="card full">
+        <h2>Tráfego de Rede</h2>
+        <div class="traffic-grid" id="trafficRows">
+          <div class="traffic-item">
+            <div class="traffic-name">Geral</div>
+            <div class="traffic-metrics">Carregando tráfego...</div>
+          </div>
         </div>
       </article>
 
@@ -851,6 +890,13 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+    const fmtRate = (bytesPerSecond) => {
+      const bps = Number(bytesPerSecond || 0);
+      if (bps < 1024) return bps.toFixed(0) + " B/s";
+      if (bps < 1024 ** 2) return (bps / 1024).toFixed(1) + " KB/s";
+      if (bps < 1024 ** 3) return (bps / (1024 ** 2)).toFixed(2) + " MB/s";
+      return (bps / (1024 ** 3)).toFixed(2) + " GB/s";
+    };
 
     const toGb = (n) => Number(n || 0) / (1024 ** 3);
     const toMb = (n) => Number(n || 0) / (1024 ** 2);
@@ -1153,20 +1199,22 @@
 
     async function load() {
       try {
-        const [systemRes, dockerRes, servicesRes, firebirdRes, tunnelRes] = await Promise.all([
+        const [systemRes, dockerRes, servicesRes, firebirdRes, tunnelRes, trafficRes] = await Promise.all([
           apiFetch("/api/system"),
           apiFetch("/api/docker"),
           apiFetch("/api/services"),
           apiFetch("/api/firebird"),
-          apiFetch("/api/tunnel")
+          apiFetch("/api/tunnel"),
+          apiFetch("/api/traffic")
         ]);
 
-        const [system, docker, services, firebird, tunnel] = await Promise.all([
+        const [system, docker, services, firebird, tunnel, traffic] = await Promise.all([
           parseJsonResponse(systemRes),
           parseJsonResponse(dockerRes),
           parseJsonResponse(servicesRes),
           parseJsonResponse(firebirdRes),
-          parseJsonResponse(tunnelRes)
+          parseJsonResponse(tunnelRes),
+          parseJsonResponse(trafficRes)
         ]);
 
         document.getElementById("cpuSpec").textContent = String(system.cpu_cores || 4);
@@ -1227,6 +1275,43 @@
             '<span>' + dot(item.online) + '</span>' +
           '</div>';
         }).join("");
+
+        const appTraffic = Array.isArray(traffic.applications) ? traffic.applications : [];
+        const trafficCards = [];
+        if (traffic.total) {
+          trafficCards.push({
+            name: "Geral",
+            rxBytes: traffic.total.rx_bytes,
+            txBytes: traffic.total.tx_bytes,
+            rxRate: traffic.total.rx_bps,
+            txRate: traffic.total.tx_bps,
+            containers: []
+          });
+        }
+        appTraffic.forEach((item) => {
+          trafficCards.push({
+            name: item.app || "app",
+            rxBytes: item.rx_bytes,
+            txBytes: item.tx_bytes,
+            rxRate: item.rx_bps,
+            txRate: item.tx_bps,
+            containers: Array.isArray(item.containers) ? item.containers : []
+          });
+        });
+
+        document.getElementById("trafficRows").innerHTML = (trafficCards.map((item) => {
+          const containersInfo = item.containers.length
+            ? ("Containers: " + item.containers.join(", "))
+            : "Containers: todos";
+          return "<div class='traffic-item'>" +
+            "<div class='traffic-name'>" + item.name + "</div>" +
+            "<div class='traffic-metrics'>" +
+              "Download: " + fmtBytes(item.rxBytes) + " (" + fmtRate(item.rxRate) + ")" +
+              " | Upload: " + fmtBytes(item.txBytes) + " (" + fmtRate(item.txRate) + ")" +
+              "<br>" + containersInfo +
+            "</div>" +
+          "</div>";
+        }).join("")) || "<div class='traffic-item'><div class='traffic-name'>Geral</div><div class='traffic-metrics'>Sem dados de tráfego.</div></div>";
 
         document.getElementById("dockerMeta").textContent =
           "Total: " + (docker.total || 0) + " | Running: " + (docker.running || 0);
