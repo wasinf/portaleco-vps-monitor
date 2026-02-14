@@ -21,8 +21,9 @@ services:
       - portaleco_monitor_auth_data_staging:/data
     restart: unless-stopped
     networks:
-      - proxy
-      - npm-network
+      proxy:
+      npm-network:
+        ipv4_address: 172.20.0.40
 
   portaleco-vps-monitor-frontend-staging:
     build:
@@ -32,8 +33,9 @@ services:
       - "127.0.0.1:4101:80"
     restart: unless-stopped
     networks:
-      - proxy
-      - npm-network
+      proxy:
+      npm-network:
+        ipv4_address: 172.20.0.41
 
 networks:
   proxy:

@@ -25,6 +25,15 @@ Frontend → 4001
 Backend staging → 4100  
 Frontend staging → 4101
 
+## Estabilidade de proxy (anti-502)
+
+No `docker-compose` do monitor, os serviços usam IP fixo na rede `npm-network`:
+
+- Produção: backend `172.20.0.30`, frontend `172.20.0.31`
+- Staging: backend `172.20.0.40`, frontend `172.20.0.41`
+
+Isso reduz risco de `502` no Nginx Proxy Manager após redeploy por troca de IP dinâmico.
+
 ## Autenticação do dashboard
 
 As rotas `/api/*` são protegidas por token Bearer (exceto `/api/auth/login`).
