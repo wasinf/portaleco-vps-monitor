@@ -627,6 +627,7 @@
       parts.push(minutes + "min");
       return parts.join(" ");
     };
+    const fmtDateTime = (date) => date.toLocaleString("pt-BR");
 
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
@@ -737,8 +738,10 @@
           "Host: " + (system.hostname || "-") +
           " | RAM: " + fmtBytes(system.memory?.used) + " / " + fmtBytes(system.memory?.total) +
           " | Disco: " + fmtBytes(system.disk?.used) + " / " + fmtBytes(system.disk?.total);
+        const startedAt = new Date(Date.now() - (Number(system.uptime_seconds || 0) * 1000));
         document.getElementById("sysUptime").textContent =
-          "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds);
+          "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds) +
+          " | Iniciado em: " + fmtDateTime(startedAt);
 
         document.getElementById("tunnelLine").innerHTML =
           "Tunnel: " + dot(Boolean(tunnel.running)) + " | Registrado: " + (tunnel.registered ? "Sim" : "Não");
