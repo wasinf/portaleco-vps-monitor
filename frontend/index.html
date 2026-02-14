@@ -406,10 +406,62 @@
       flex-direction: column;
       gap: 8px;
       color: var(--muted);
+      font-size: 15px;
+      line-height: 1.35;
     }
 
     .api-line strong {
       color: var(--ink);
+    }
+
+    .api-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .api-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.35px;
+      white-space: nowrap;
+    }
+
+    .api-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .api-badge.ok {
+      background: #dff6e7;
+      border-color: #9fd7b2;
+      color: #17623a;
+    }
+
+    .api-badge.bad {
+      background: #ffe2e2;
+      border-color: #efb1b1;
+      color: #9b2c2c;
+    }
+
+    .api-error-text {
+      display: inline-block;
+      max-width: min(100%, 920px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
     }
 
     .footer {
@@ -420,7 +472,7 @@
 
     .sys-top {
       color: var(--muted);
-      font-size: 13px;
+      font-size: 15px;
       margin-bottom: 6px;
     }
 
@@ -607,7 +659,10 @@
 
     <div class="grid">
       <article class="card full">
-        <h2>Status da API</h2>
+        <div class="api-head">
+          <h2>Status da API</h2>
+          <span class="api-badge ok" id="apiBadge">Online</span>
+        </div>
         <div class="api-status" id="apiStatus">
           <div class="api-line">Último sucesso: <strong>aguardando</strong></div>
           <div class="api-line">Último erro: <strong>nenhum</strong></div>
@@ -727,6 +782,23 @@
       return parts.join(" ");
     };
     const fmtDateTime = (date) => date.toLocaleString("pt-BR");
+    const fmtAgo = (date) => {
+      if (!date) return "";
+      const sec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+      if (sec < 5) return "agora";
+      if (sec < 60) return "há " + sec + "s";
+      const min = Math.floor(sec / 60);
+      if (min < 60) return "há " + min + "min";
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return "há " + hr + "h";
+      const day = Math.floor(hr / 24);
+      return "há " + day + "d";
+    };
+    const escapeHtml = (value) => String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
 
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
@@ -780,16 +852,29 @@
 
     const updateApiStatus = () => {
       const apiStatusEl = document.getElementById("apiStatus");
+      const apiBadgeEl = document.getElementById("apiBadge");
       if (!apiStatusEl) return;
 
-      const okText = lastApiOkAt ? fmtDateTime(lastApiOkAt) : "aguardando";
-      const errText = lastApiErrorAt
-        ? (fmtDateTime(lastApiErrorAt) + (lastApiErrorMessage ? " (" + lastApiErrorMessage + ")" : ""))
-        : "nenhum";
+      const hasActiveError = Boolean(lastApiErrorAt && (!lastApiOkAt || lastApiErrorAt >= lastApiOkAt));
+      if (apiBadgeEl) {
+        apiBadgeEl.className = "api-badge " + (hasActiveError ? "bad" : "ok");
+        apiBadgeEl.textContent = hasActiveError ? "Erro" : "Online";
+      }
+
+      const okText = lastApiOkAt
+        ? (fmtDateTime(lastApiOkAt) + " (" + fmtAgo(lastApiOkAt) + ")")
+        : "aguardando";
+      const errText = lastApiErrorAt ? (fmtDateTime(lastApiErrorAt) + " (" + fmtAgo(lastApiErrorAt) + ")") : "nenhum";
+      const errMessageEscaped = escapeHtml(lastApiErrorMessage || "");
+      const errorLine = lastApiErrorAt
+        ? "<strong>" + errText + "</strong>" + (errMessageEscaped
+          ? ' <span class="api-error-text" title="' + errMessageEscaped + '">(' + errMessageEscaped + ")</span>"
+          : "")
+        : "<strong>nenhum</strong>";
 
       apiStatusEl.innerHTML =
         '<div class="api-line">Último sucesso: <strong>' + okText + '</strong></div>' +
-        '<div class="api-line">Último erro: <strong>' + errText + '</strong></div>';
+        '<div class="api-line">Último erro: ' + errorLine + "</div>";
     };
 
     async function apiFetch(path, options = {}) {
