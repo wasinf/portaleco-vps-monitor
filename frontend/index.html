@@ -230,22 +230,18 @@
 
     .top-stack {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 12px;
       width: 100%;	
     }
 
     .top-stack > .hero,
     .top-stack > .card {
+      grid-column: 1 / -1;
       width: 100%;
       max-width: none;
       margin: 0;
       justify-self: stretch;
-     }
- 
-     /* garante que o card Sistema no topo use a largura toda */
-     .top-stack > .card {
-       grid-column: 1 / -1;
      }
 
     .hero {
@@ -449,7 +445,7 @@
 /* Alinhar largura do banner com o card Sistema */
 .page .top-stack {
   width: 100% !important;
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
 }
 
 .page .top-stack > .hero {
