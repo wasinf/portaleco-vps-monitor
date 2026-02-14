@@ -63,6 +63,18 @@ const openAuthStore = (dbPath) => {
     WHERE username = ?
   `);
 
+  const updateActiveStmt = db.prepare(`
+    UPDATE users
+    SET active = ?, updated_at = datetime('now')
+    WHERE username = ?
+  `);
+
+  const countActiveAdminsStmt = db.prepare(`
+    SELECT COUNT(1) AS total
+    FROM users
+    WHERE role = 'admin' AND active = 1
+  `);
+
   const getPublicUsersStmt = db.prepare(`
     SELECT username, role, active, created_at, updated_at
     FROM users
@@ -78,6 +90,25 @@ const openAuthStore = (dbPath) => {
 
     const existing = findUser(cleanUsername);
     if (existing) return existing;
+
+    insertUserStmt.run(cleanUsername, hashPassword(password), role);
+    return findUser(cleanUsername);
+  };
+
+  const createUser = (username, password, role = "viewer") => {
+    const cleanUsername = String(username || "").trim();
+    if (!cleanUsername) throw new Error("username obrigatorio");
+    if (!/^[a-zA-Z0-9._-]{3,64}$/.test(cleanUsername)) {
+      throw new Error("username invalido (use 3-64 chars: letras, numeros, ponto, _ ou -)");
+    }
+    if (!["admin", "viewer"].includes(role)) {
+      throw new Error("role invalido");
+    }
+    validateNewPassword(String(password || ""));
+
+    if (findUser(cleanUsername)) {
+      throw new Error("usuario ja existe");
+    }
 
     insertUserStmt.run(cleanUsername, hashPassword(password), role);
     return findUser(cleanUsername);
@@ -103,6 +134,23 @@ const openAuthStore = (dbPath) => {
     return findUser(user.username);
   };
 
+  const setUserActive = (username, active) => {
+    const user = findUser(username);
+    if (!user) throw new Error("usuario nao encontrado");
+    const desiredActive = active ? 1 : 0;
+
+    if (user.role === "admin" && desiredActive === 0) {
+      const currentActiveAdmins = Number(countActiveAdminsStmt.get()?.total || 0);
+      const isUserCurrentlyActive = Number(user.active) === 1;
+      if (isUserCurrentlyActive && currentActiveAdmins <= 1) {
+        throw new Error("nao e permitido desativar o ultimo admin ativo");
+      }
+    }
+
+    updateActiveStmt.run(desiredActive, user.username);
+    return findUser(user.username);
+  };
+
   const listUsers = () =>
     getPublicUsersStmt.all().map((row) => ({
       username: row.username,
@@ -115,8 +163,10 @@ const openAuthStore = (dbPath) => {
   return {
     dbPath: fullDbPath,
     ensureUser,
+    createUser,
     validateCredentials,
     changePassword,
+    setUserActive,
     listUsers
   };
 };

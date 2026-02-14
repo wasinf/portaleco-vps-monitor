@@ -106,6 +106,59 @@
       cursor: pointer;
     }
 
+    .users-toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .users-field {
+      display: grid;
+      gap: 4px;
+      min-width: 180px;
+      flex: 1;
+    }
+
+    .users-field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .users-field input,
+    .users-field select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .primary-btn {
+      border: 1px solid #0f4f99;
+      background: #1f6fca;
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .mini-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     .page {
       max-width: 1100px;
       margin: 0 auto;
@@ -405,6 +458,43 @@
         <div class="services" id="services"></div>
       </article>
 
+      <article class="card full" id="usersCard" style="display:none;">
+        <h2>Usuários</h2>
+        <div class="users-toolbar">
+          <div class="users-field">
+            <label for="newUsername">Usuário</label>
+            <input id="newUsername" placeholder="ex: suporte.portaleco" />
+          </div>
+          <div class="users-field">
+            <label for="newPassword">Senha inicial</label>
+            <input id="newPassword" type="password" placeholder="mínimo 8 caracteres" />
+          </div>
+          <div class="users-field" style="max-width:160px;">
+            <label for="newRole">Perfil</label>
+            <select id="newRole">
+              <option value="viewer">viewer</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <button class="primary-btn" id="createUserBtn" type="button">Criar usuário</button>
+        </div>
+        <div class="meta" id="usersMeta">Carregando usuários...</div>
+        <div style="margin-top:10px; overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Atualizado</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="usersRows"></tbody>
+          </table>
+        </div>
+      </article>
+
       <article class="card full">
         <h2>Containers Docker</h2>
         <div class="meta" id="dockerMeta">Carregando...</div>
@@ -431,6 +521,7 @@
   <script>
     const TOKEN_KEY = "portaleco_vps_monitor_token";
     const USER_KEY = "portaleco_vps_monitor_user";
+    const USER_ROLE_KEY = "portaleco_vps_monitor_role";
     let pollHandle = null;
 
     const fmtBytes = (n) => {
@@ -455,13 +546,17 @@
 
     const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
     const getUser = () => localStorage.getItem(USER_KEY) || "";
+    const getRole = () => localStorage.getItem(USER_ROLE_KEY) || "";
 
-    const setSession = (token, username) => {
+    const setSession = (token, username, role) => {
       if (token) localStorage.setItem(TOKEN_KEY, token);
       else localStorage.removeItem(TOKEN_KEY);
 
       if (username) localStorage.setItem(USER_KEY, username);
       else localStorage.removeItem(USER_KEY);
+
+      if (role) localStorage.setItem(USER_ROLE_KEY, role);
+      else localStorage.removeItem(USER_ROLE_KEY);
     };
 
     const setLoginMessage = (message, isError = false) => {
@@ -484,7 +579,10 @@
       document.getElementById("loginView").style.display = "none";
       document.getElementById("dashboardView").style.display = "grid";
       const user = getUser();
-      document.getElementById("sessionUser").textContent = user ? ("Usuário: " + user) : "";
+      const role = getRole();
+      document.getElementById("sessionUser").textContent =
+        user ? ("Usuário: " + user + (role ? " (" + role + ")" : "")) : "";
+      document.getElementById("usersCard").style.display = role === "admin" ? "block" : "none";
       if (!pollHandle) {
         pollHandle = setInterval(load, 10000);
       }
@@ -569,13 +667,42 @@
 
         document.getElementById("updatedAt").textContent =
           "Atualizado em: " + new Date().toLocaleString("pt-BR");
+
+        if (getRole() === "admin") {
+          await loadUsers();
+        }
       } catch (e) {
         if (e.authError) {
-          setSession("", "");
+          setSession("", "", "");
           showLoginView(e.message, true);
           return;
         }
         document.getElementById("updatedAt").textContent = "Erro ao atualizar: " + e.message;
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const response = await apiFetch("/api/auth/users");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Falha ao carregar usuários");
+        }
+
+        const users = Array.isArray(data.users) ? data.users : [];
+        document.getElementById("usersMeta").textContent = "Total: " + users.length;
+        document.getElementById("usersRows").innerHTML = users.map((u) => {
+          const actionLabel = u.active ? "Desativar" : "Ativar";
+          return "<tr>" +
+            "<td>" + (u.username || "-") + "</td>" +
+            "<td>" + (u.role || "-") + "</td>" +
+            "<td>" + (u.active ? "<span class='st st-run'>Ativo</span>" : "<span class='st st-stop'>Inativo</span>") + "</td>" +
+            "<td>" + (u.updated_at || "-") + "</td>" +
+            "<td><button class='mini-btn' data-user-toggle='" + (u.username || "") + "' data-user-active='" + (u.active ? "1" : "0") + "'>" + actionLabel + "</button></td>" +
+          "</tr>";
+        }).join("") || "<tr><td colspan='5'>Sem usuários</td></tr>";
+      } catch (error) {
+        document.getElementById("usersMeta").textContent = "Erro ao carregar usuários: " + error.message;
       }
     }
 
@@ -600,7 +727,7 @@
         }
 
         if (data.auth_enabled === false) {
-          setSession("", username || "local");
+          setSession("", username || "local", "admin");
           showDashboardView();
           await load();
           return;
@@ -610,7 +737,7 @@
           throw new Error("Token não recebido no login.");
         }
 
-        setSession(data.token, data.user?.username || username);
+        setSession(data.token, data.user?.username || username, data.user?.role || "viewer");
         showDashboardView();
         await load();
       } catch (error) {
@@ -621,7 +748,7 @@
     });
 
     document.getElementById("logoutBtn").addEventListener("click", () => {
-      setSession("", "");
+      setSession("", "", "");
       showLoginView("Sessão encerrada.");
     });
 
@@ -661,12 +788,84 @@
       }
     });
 
-    if (getToken()) {
-      showDashboardView();
-      load();
-    } else {
-      showLoginView("Informe suas credenciais para continuar.");
+    document.getElementById("createUserBtn").addEventListener("click", async () => {
+      const username = document.getElementById("newUsername").value.trim();
+      const password = document.getElementById("newPassword").value;
+      const role = document.getElementById("newRole").value;
+
+      if (!username || !password) {
+        window.alert("Preencha usuário e senha.");
+        return;
+      }
+      if (password.length < 8) {
+        window.alert("A senha precisa ter no mínimo 8 caracteres.");
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/api/auth/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password, role })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Falha ao criar usuário");
+        }
+        document.getElementById("newUsername").value = "";
+        document.getElementById("newPassword").value = "";
+        document.getElementById("newRole").value = "viewer";
+        await loadUsers();
+      } catch (error) {
+        window.alert(error.message || "Falha ao criar usuário");
+      }
+    });
+
+    document.getElementById("usersRows").addEventListener("click", async (event) => {
+      const btn = event.target.closest("button[data-user-toggle]");
+      if (!btn) return;
+      const username = btn.getAttribute("data-user-toggle");
+      const currentlyActive = btn.getAttribute("data-user-active") === "1";
+      const nextActive = !currentlyActive;
+
+      try {
+        const response = await apiFetch("/api/auth/users/" + encodeURIComponent(username) + "/active", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: nextActive })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Falha ao atualizar usuário");
+        }
+        await loadUsers();
+      } catch (error) {
+        window.alert(error.message || "Falha ao atualizar usuário");
+      }
+    });
+
+    async function bootstrapSession() {
+      if (!getToken()) {
+        showLoginView("Informe suas credenciais para continuar.");
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/api/auth/me");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Sessão inválida");
+        }
+        setSession(getToken(), data.user?.username || getUser(), data.user?.role || getRole() || "viewer");
+        showDashboardView();
+        await load();
+      } catch (_) {
+        setSession("", "", "");
+        showLoginView("Sessão expirada. Faça login novamente.", true);
+      }
     }
+
+    bootstrapSession();
   </script>
 </body>
 </html>

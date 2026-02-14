@@ -64,5 +64,7 @@ Script em `deploy.sh` com suporte a:
 
 - `POST /api/auth/login`
 - `GET /api/auth/me`
-- `GET /api/auth/users`
 - `POST /api/auth/change-password`
+- `GET /api/auth/users` (admin)
+- `POST /api/auth/users` (admin)
+- `PATCH /api/auth/users/:username/active` (admin)

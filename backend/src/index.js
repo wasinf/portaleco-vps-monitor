@@ -119,6 +119,15 @@ const apiAuthMiddleware = (req, res, next) => {
   }
 };
 
+const requireAdmin = (req, res, next) => {
+  if (req.auth?.role === "admin") return next();
+  return res.status(403).json({
+    status: "error",
+    error: "acesso negado",
+    detail: "apenas admin pode executar esta operacao"
+  });
+};
+
 const dockerApi = (path) =>
   new Promise((resolve, reject) => {
     const socketPath = "/var/run/docker.sock";
@@ -265,11 +274,77 @@ app.get("/api/auth/me", (req, res) => {
   });
 });
 
-app.get("/api/auth/users", (req, res) => {
+app.get("/api/auth/users", requireAdmin, (req, res) => {
   return res.json({
     status: "ok",
     users: authStore.listUsers()
   });
+});
+
+app.post("/api/auth/users", requireAdmin, (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "");
+  const role = String(req.body?.role || "viewer");
+
+  if (!username || !password) {
+    return res.status(400).json({
+      status: "error",
+      error: "campos obrigatorios",
+      detail: "username e password sao obrigatorios"
+    });
+  }
+
+  try {
+    const user = authStore.createUser(username, password, role);
+    return res.status(201).json({
+      status: "ok",
+      user: {
+        username: user.username,
+        role: user.role,
+        active: Boolean(user.active),
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
+    });
+  } catch (err) {
+    return res.status(400).json({
+      status: "error",
+      error: "falha ao criar usuario",
+      detail: String(err.message || err)
+    });
+  }
+});
+
+app.patch("/api/auth/users/:username/active", requireAdmin, (req, res) => {
+  const targetUsername = String(req.params?.username || "").trim();
+  const active = Boolean(req.body?.active);
+
+  if (!targetUsername) {
+    return res.status(400).json({
+      status: "error",
+      error: "username obrigatorio"
+    });
+  }
+
+  try {
+    const user = authStore.setUserActive(targetUsername, active);
+    return res.json({
+      status: "ok",
+      user: {
+        username: user.username,
+        role: user.role,
+        active: Boolean(user.active),
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
+    });
+  } catch (err) {
+    return res.status(400).json({
+      status: "error",
+      error: "falha ao atualizar usuario",
+      detail: String(err.message || err)
+    });
+  }
 });
 
 app.post("/api/auth/change-password", (req, res) => {
