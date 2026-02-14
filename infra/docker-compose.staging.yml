@@ -1,20 +1,20 @@
-name: portaleco-vps-monitor
+name: portaleco-vps-monitor-staging
 
 services:
 
-  portaleco-vps-monitor-backend:
+  portaleco-vps-monitor-backend-staging:
     build:
       context: ../backend
-    container_name: portaleco-vps-monitor-backend
+    container_name: portaleco-vps-monitor-backend-staging
     environment:
-      - HOST_HOSTNAME=${HOST_HOSTNAME:-45.233.60.55}
+      - HOST_HOSTNAME=${HOST_HOSTNAME:-staging.portaleco.local}
       - AUTH_ENABLED=${AUTH_ENABLED:-true}
-      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_USERNAME=${AUTH_USERNAME:-staging-admin}
       - AUTH_PASSWORD=${AUTH_PASSWORD:-change-me}
       - AUTH_TOKEN_SECRET=${AUTH_TOKEN_SECRET:-change-this-token-secret}
       - AUTH_TOKEN_TTL_SECONDS=${AUTH_TOKEN_TTL_SECONDS:-43200}
     ports:
-      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:4100:4000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
@@ -22,12 +22,12 @@ services:
       - proxy
       - npm-network
 
-  portaleco-vps-monitor-frontend:
+  portaleco-vps-monitor-frontend-staging:
     build:
       context: ../frontend
-    container_name: portaleco-vps-monitor-frontend
+    container_name: portaleco-vps-monitor-frontend-staging
     ports:
-      - "127.0.0.1:4001:80"
+      - "127.0.0.1:4101:80"
     restart: unless-stopped
     networks:
       - proxy
