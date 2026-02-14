@@ -384,8 +384,20 @@
       background: #fff;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
+    }
+
+    .service-info {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .service-detail {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.25;
     }
 
     .footer {
@@ -559,12 +571,6 @@
     </section>
 
     <div class="grid">
-      <article class="card">
-        <h2>Tunnel / Firebird</h2>
-        <div id="tunnelLine" class="meta">Tunnel: ...</div>
-        <div id="firebirdLine" class="meta" style="margin-top:8px;">Firebird: ...</div>
-      </article>
-
       <article class="card full">
         <h2>Serviços críticos</h2>
         <div class="services" id="services"></div>
@@ -789,18 +795,47 @@
           "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds) +
           " | Iniciado em: " + fmtDateTime(startedAt);
 
-        document.getElementById("tunnelLine").innerHTML =
-          "Tunnel: " + dot(Boolean(tunnel.running)) + " | Registrado: " + (tunnel.registered ? "Sim" : "Não");
-
-        document.getElementById("firebirdLine").innerHTML =
-          "Firebird: " + dot(Boolean(firebird.ok)) + " | Versão: " + (firebird.version || "-") +
-          " | Resp: " + (firebird.response_ms ?? "-") + " ms";
-
-        const serviceNames = ["chalana-api","firebird25","nginx-proxy-manager","cloudflared"];
+        const serviceCards = [
+          {
+            name: "chalana-api",
+            online: Boolean(services.services && services.services["chalana-api"]),
+            detail: "API principal"
+          },
+          {
+            name: "firebird25",
+            online: Boolean(services.services && services.services["firebird25"]),
+            detail: "Banco Firebird"
+          },
+          {
+            name: "nginx-proxy-manager",
+            online: Boolean(services.services && services.services["nginx-proxy-manager"]),
+            detail: "Proxy reverso"
+          },
+          {
+            name: "cloudflared",
+            online: Boolean(services.services && services.services["cloudflared"]),
+            detail: "Tunnel Cloudflare"
+          },
+          {
+            name: "tunnel",
+            online: Boolean(tunnel.running),
+            detail: "Registrado: " + (tunnel.registered ? "Sim" : "Não")
+          },
+          {
+            name: "firebird monitor",
+            online: Boolean(firebird.ok),
+            detail: "Versão: " + (firebird.version || "-") + " | Resp: " + (firebird.response_ms ?? "-") + " ms"
+          }
+        ];
         const servicesEl = document.getElementById("services");
-        servicesEl.innerHTML = serviceNames.map((name) => {
-          const up = Boolean(services.services && services.services[name]);
-          return '<div class="service-item"><strong>' + name + '</strong><span>' + dot(up) + '</span></div>';
+        servicesEl.innerHTML = serviceCards.map((item) => {
+          return '<div class="service-item">' +
+            '<div class="service-info">' +
+              '<strong>' + item.name + '</strong>' +
+              '<div class="service-detail">' + item.detail + '</div>' +
+            '</div>' +
+            '<span>' + dot(item.online) + '</span>' +
+          '</div>';
         }).join("");
 
         document.getElementById("dockerMeta").textContent =
