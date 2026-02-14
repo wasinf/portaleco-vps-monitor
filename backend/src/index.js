@@ -5,6 +5,7 @@ const { exec } = require("child_process");
 const http = require("http");
 const fs = require("fs");
 const crypto = require("crypto");
+const { MIN_PASSWORD_LENGTH, openAuthStore } = require("./auth-store");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -13,6 +14,8 @@ const AUTH_USERNAME = process.env.AUTH_USERNAME || "admin";
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "change-me";
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || "change-this-token-secret";
 const AUTH_TOKEN_TTL_SECONDS = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 12);
+const AUTH_DB_PATH = process.env.AUTH_DB_PATH || "/data/auth.db";
+const authStore = openAuthStore(AUTH_DB_PATH);
 
 app.use(cors());
 app.use(express.json());
@@ -32,11 +35,12 @@ const base64UrlDecode = (value) => {
   return Buffer.from(padded, "base64").toString("utf8");
 };
 
-const signAuthToken = (username) => {
+const signAuthToken = (user) => {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const payload = {
-    sub: username,
+    sub: user.username,
+    role: user.role || "viewer",
     iat: now,
     exp: now + Math.max(60, Number(AUTH_TOKEN_TTL_SECONDS) || 0)
   };
@@ -81,13 +85,6 @@ const verifyAuthToken = (token) => {
   }
 
   return payload;
-};
-
-const safeEquals = (a, b) => {
-  const left = Buffer.from(String(a || ""));
-  const right = Buffer.from(String(b || ""));
-  if (left.length !== right.length) return false;
-  return crypto.timingSafeEqual(left, right);
 };
 
 const getBearerToken = (req) => {
@@ -240,20 +237,21 @@ app.post("/api/auth/login", (req, res) => {
     });
   }
 
-  if (!safeEquals(username, AUTH_USERNAME) || !safeEquals(password, AUTH_PASSWORD)) {
+  const user = authStore.validateCredentials(username, password);
+  if (!user) {
     return res.status(401).json({
       status: "error",
       error: "credenciais invalidas"
     });
   }
 
-  const token = signAuthToken(username);
+  const token = signAuthToken(user);
   return res.json({
     status: "ok",
     token,
     token_type: "Bearer",
     expires_in: Math.max(60, Number(AUTH_TOKEN_TTL_SECONDS) || 0),
-    user: { username }
+    user: { username: user.username, role: user.role }
   });
 });
 
@@ -263,8 +261,41 @@ app.get("/api/auth/me", (req, res) => {
   return res.json({
     status: "ok",
     auth_enabled: AUTH_ENABLED,
-    user: { username: req.auth?.sub || AUTH_USERNAME }
+    user: { username: req.auth?.sub || AUTH_USERNAME, role: req.auth?.role || "viewer" }
   });
+});
+
+app.get("/api/auth/users", (req, res) => {
+  return res.json({
+    status: "ok",
+    users: authStore.listUsers()
+  });
+});
+
+app.post("/api/auth/change-password", (req, res) => {
+  const currentPassword = String(req.body?.current_password || "");
+  const newPassword = String(req.body?.new_password || "");
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({
+      status: "error",
+      error: "campos obrigatorios",
+      detail: "current_password e new_password sao obrigatorios"
+    });
+  }
+
+  try {
+    authStore.changePassword(req.auth?.sub || "", currentPassword, newPassword);
+    return res.json({
+      status: "ok",
+      detail: "senha alterada com sucesso"
+    });
+  } catch (err) {
+    return res.status(400).json({
+      status: "error",
+      error: "falha ao alterar senha",
+      detail: String(err.message || err || `senha deve ter ao menos ${MIN_PASSWORD_LENGTH} caracteres`)
+    });
+  }
 });
 
 app.get("/api/system", async (req, res) => {
@@ -437,6 +468,15 @@ app.get("/api/tunnel", async (req, res) => {
 });
 
 app.listen(PORT, () => {
+  if (AUTH_ENABLED) {
+    try {
+      authStore.ensureUser(AUTH_USERNAME, AUTH_PASSWORD, "admin");
+      console.log(`auth db ready at ${AUTH_DB_PATH}; admin seed: ${AUTH_USERNAME}`);
+    } catch (err) {
+      console.error("failed to initialize auth store:", err.message || err);
+      process.exit(1);
+    }
+  }
   if (AUTH_ENABLED && AUTH_PASSWORD === "change-me") {
     console.warn("AUTH_PASSWORD esta no valor padrao; altere em producao.");
   }

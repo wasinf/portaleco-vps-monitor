@@ -364,6 +364,7 @@
   <div class="page" id="dashboardView" style="display:none;">
     <div class="session-bar">
       <span class="session-user" id="sessionUser"></span>
+      <button class="logout-btn" id="changePasswordBtn" type="button">Trocar senha</button>
       <button class="logout-btn" id="logoutBtn" type="button">Sair</button>
     </div>
     <section class="top-stack">
@@ -622,6 +623,42 @@
     document.getElementById("logoutBtn").addEventListener("click", () => {
       setSession("", "");
       showLoginView("Sessão encerrada.");
+    });
+
+    document.getElementById("changePasswordBtn").addEventListener("click", async () => {
+      const currentPassword = window.prompt("Informe sua senha atual:");
+      if (currentPassword === null) return;
+      const newPassword = window.prompt("Informe a nova senha (mínimo 8 caracteres):");
+      if (newPassword === null) return;
+      const confirmPassword = window.prompt("Confirme a nova senha:");
+      if (confirmPassword === null) return;
+
+      if (newPassword.length < 8) {
+        window.alert("A nova senha precisa ter no mínimo 8 caracteres.");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        window.alert("A confirmação da senha não confere.");
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword
+          })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Falha ao alterar senha.");
+        }
+        window.alert("Senha alterada com sucesso.");
+      } catch (error) {
+        window.alert(error.message || "Falha ao alterar senha.");
+      }
     });
 
     if (getToken()) {

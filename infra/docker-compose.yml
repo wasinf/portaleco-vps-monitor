@@ -13,10 +13,12 @@ services:
       - AUTH_PASSWORD=${AUTH_PASSWORD:-change-me}
       - AUTH_TOKEN_SECRET=${AUTH_TOKEN_SECRET:-change-this-token-secret}
       - AUTH_TOKEN_TTL_SECONDS=${AUTH_TOKEN_TTL_SECONDS:-43200}
+      - AUTH_DB_PATH=${AUTH_DB_PATH:-/data/auth.db}
     ports:
       - "127.0.0.1:4000:4000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portaleco_monitor_auth_data:/data
     restart: unless-stopped
     networks:
       - proxy
@@ -38,3 +40,6 @@ networks:
     external: true
   npm-network:
     external: true
+
+volumes:
+  portaleco_monitor_auth_data:
