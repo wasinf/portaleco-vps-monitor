@@ -415,6 +415,7 @@
     }
 
     .spec {
+      position: relative;
       border-radius: 12px;
       background: #fff;
       border: 1px solid var(--line);
@@ -423,8 +424,53 @@
       overflow: hidden;
     }
 
+    .spec::after {
+      position: absolute;
+      right: 10px;
+      bottom: 6px;
+      font-size: 52px;
+      line-height: 1;
+      font-weight: 800;
+      opacity: 0.14;
+      pointer-events: none;
+    }
+
+    .sys-specs .spec:nth-child(1) {
+      background: linear-gradient(145deg, #fff6df, #ffe8b8);
+      border-color: #f2cf80;
+      color: #3d2a00;
+    }
+
+    .sys-specs .spec:nth-child(1)::after {
+      content: "CPU";
+      color: #7b4f00;
+    }
+
+    .sys-specs .spec:nth-child(2) {
+      background: linear-gradient(145deg, #e6f6ff, #cfeeff);
+      border-color: #98cde8;
+      color: #032f45;
+    }
+
+    .sys-specs .spec:nth-child(2)::after {
+      content: "RAM";
+      color: #0a4f73;
+    }
+
+    .sys-specs .spec:nth-child(3) {
+      background: linear-gradient(145deg, #eafceb, #d4f5d7);
+      border-color: #9fdfab;
+      color: #093516;
+    }
+
+    .sys-specs .spec:nth-child(3)::after {
+      content: "SSD";
+      color: #2b6f3a;
+    }
+
     .spec-label {
-      color: #3e4652;
+      color: currentColor;
+      opacity: 0.85;
       font-size: 16px;
       margin-bottom: 8px;
     }
