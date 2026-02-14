@@ -669,6 +669,20 @@
       return response;
     }
 
+    async function parseJsonResponse(response) {
+      const bodyText = await response.text();
+      if (!bodyText) return {};
+      try {
+        return JSON.parse(bodyText);
+      } catch (_) {
+        const preview = bodyText.replace(/\s+/g, " ").trim().slice(0, 140);
+        throw new Error(
+          "Resposta invalida da API (HTTP " + response.status + ")" +
+          (preview ? ": " + preview : "")
+        );
+      }
+    }
+
     async function load() {
       try {
         const [systemRes, dockerRes, servicesRes, firebirdRes, tunnelRes] = await Promise.all([
@@ -679,11 +693,13 @@
           apiFetch("/api/tunnel")
         ]);
 
-        const system = await systemRes.json();
-        const docker = await dockerRes.json();
-        const services = await servicesRes.json();
-        const firebird = await firebirdRes.json();
-        const tunnel = await tunnelRes.json();
+        const [system, docker, services, firebird, tunnel] = await Promise.all([
+          parseJsonResponse(systemRes),
+          parseJsonResponse(dockerRes),
+          parseJsonResponse(servicesRes),
+          parseJsonResponse(firebirdRes),
+          parseJsonResponse(tunnelRes)
+        ]);
 
         document.getElementById("cpuSpec").textContent = String(system.cpu_cores || 4);
         document.getElementById("ramSpec").textContent =
@@ -749,7 +765,7 @@
       if (!isAdmin()) return;
       try {
         const response = await apiFetch("/api/auth/users");
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Falha ao carregar usuários");
         }
@@ -785,7 +801,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password })
         });
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
 
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Falha de autenticação");
@@ -843,7 +859,7 @@
             new_password: newPassword
           })
         });
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Falha ao alterar senha.");
         }
@@ -899,7 +915,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, role })
         });
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Falha ao criar usuário");
         }
@@ -925,7 +941,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active: nextActive })
         });
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Falha ao atualizar usuário");
         }
@@ -943,7 +959,7 @@
 
       try {
         const response = await apiFetch("/api/auth/me");
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Sessão inválida");
         }
