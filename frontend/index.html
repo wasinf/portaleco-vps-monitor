@@ -479,7 +479,6 @@
   <div class="page" id="dashboardView" style="display:none;">
     <div class="session-bar">
       <span class="session-user" id="sessionUser"></span>
-      <button class="logout-btn" id="changePasswordBtn" type="button">Trocar senha</button>
       <button class="gear-btn" id="openUsersModalBtn" type="button" title="Configuração de usuários" style="display:none;">&#9881;</button>
       <button class="logout-btn" id="logoutBtn" type="button">Sair</button>
     </div>
@@ -548,7 +547,10 @@
     <article class="users-panel">
       <div class="users-panel-head">
         <h2>Usuários</h2>
-        <button class="logout-btn" id="closeUsersModalBtn" type="button">Fechar</button>
+        <div style="display:flex; gap:8px;">
+          <button class="logout-btn" id="changePasswordBtn" type="button">Trocar senha</button>
+          <button class="logout-btn" id="closeUsersModalBtn" type="button">Fechar</button>
+        </div>
       </div>
       <div class="users-toolbar">
           <div class="users-field">
