@@ -397,6 +397,13 @@
     .sys-top {
       color: var(--muted);
       font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .sys-uptime {
+      color: #1f3f67;
+      font-size: 15px;
+      font-weight: 700;
       margin-bottom: 12px;
     }
 
@@ -487,6 +494,7 @@
       <article class="card full">
         <h2>Sistema</h2>
         <div class="sys-top" id="sysMeta">Carregando...</div>
+        <div class="sys-uptime" id="sysUptime">Tempo ativo: --</div>
         <div class="sys-specs">
           <div class="spec">
             <div class="spec-label">CPU</div>
@@ -606,6 +614,19 @@
 
     const toGb = (n) => Number(n || 0) / (1024 ** 3);
     const toMb = (n) => Number(n || 0) / (1024 ** 2);
+    const fmtUptime = (seconds) => {
+      let total = Math.max(0, Number(seconds || 0));
+      const days = Math.floor(total / 86400);
+      total -= days * 86400;
+      const hours = Math.floor(total / 3600);
+      total -= hours * 3600;
+      const minutes = Math.floor(total / 60);
+      const parts = [];
+      if (days > 0) parts.push(days + "d");
+      if (hours > 0 || days > 0) parts.push(hours + "h");
+      parts.push(minutes + "min");
+      return parts.join(" ");
+    };
 
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
@@ -714,9 +735,10 @@
 
         document.getElementById("sysMeta").textContent =
           "Host: " + (system.hostname || "-") +
-          " | Uptime: " + (system.uptime_seconds || 0) + "s" +
           " | RAM: " + fmtBytes(system.memory?.used) + " / " + fmtBytes(system.memory?.total) +
           " | Disco: " + fmtBytes(system.disk?.used) + " / " + fmtBytes(system.disk?.total);
+        document.getElementById("sysUptime").textContent =
+          "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds);
 
         document.getElementById("tunnelLine").innerHTML =
           "Tunnel: " + dot(Boolean(tunnel.running)) + " | Registrado: " + (tunnel.registered ? "Sim" : "Não");
