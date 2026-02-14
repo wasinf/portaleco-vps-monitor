@@ -401,6 +401,17 @@
       line-height: 1.25;
     }
 
+    .api-status {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .api-line strong {
+      color: var(--ink);
+    }
+
     .footer {
       color: var(--muted);
       font-size: 12px;
@@ -596,6 +607,14 @@
 
     <div class="grid">
       <article class="card full">
+        <h2>Status da API</h2>
+        <div class="api-status" id="apiStatus">
+          <div class="api-line">Último sucesso: <strong>aguardando</strong></div>
+          <div class="api-line">Último erro: <strong>nenhum</strong></div>
+        </div>
+      </article>
+
+      <article class="card full">
         <h2>Serviços</h2>
         <div class="services" id="services"></div>
       </article>
@@ -672,7 +691,11 @@
     const TOKEN_KEY = "portaleco_vps_monitor_token";
     const USER_KEY = "portaleco_vps_monitor_user";
     const USER_ROLE_KEY = "portaleco_vps_monitor_role";
+    const API_TIMEOUT_MS = 10000;
     let pollHandle = null;
+    let lastApiOkAt = null;
+    let lastApiErrorAt = null;
+    let lastApiErrorMessage = "";
 
     const fmtBytes = (n) => {
       const num = Number(n || 0);
@@ -755,6 +778,20 @@
       }
     };
 
+    const updateApiStatus = () => {
+      const apiStatusEl = document.getElementById("apiStatus");
+      if (!apiStatusEl) return;
+
+      const okText = lastApiOkAt ? fmtDateTime(lastApiOkAt) : "aguardando";
+      const errText = lastApiErrorAt
+        ? (fmtDateTime(lastApiErrorAt) + (lastApiErrorMessage ? " (" + lastApiErrorMessage + ")" : ""))
+        : "nenhum";
+
+      apiStatusEl.innerHTML =
+        '<div class="api-line">Último sucesso: <strong>' + okText + '</strong></div>' +
+        '<div class="api-line">Último erro: <strong>' + errText + '</strong></div>';
+    };
+
     async function apiFetch(path, options = {}) {
       const token = getToken();
       const headers = new Headers(options.headers || {});
@@ -762,7 +799,24 @@
         headers.set("Authorization", "Bearer " + token);
       }
 
-      const response = await fetch(path, { ...options, headers });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      let response;
+      try {
+        response = await fetch(path, {
+          ...options,
+          headers,
+          cache: "no-store",
+          signal: options.signal || controller.signal
+        });
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          throw new Error("Timeout da API após " + Math.floor(API_TIMEOUT_MS / 1000) + "s em " + path);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (response.status === 401) {
         const err = new Error("Sessão expirada. Faça login novamente.");
         err.authError = true;
@@ -882,6 +936,8 @@
 
         document.getElementById("updatedAt").textContent =
           "Atualizado em: " + new Date().toLocaleString("pt-BR");
+        lastApiOkAt = new Date();
+        updateApiStatus();
 
         if (isAdmin() && usersModalEl.classList.contains("open")) {
           await loadUsers();
@@ -892,6 +948,9 @@
           showLoginView(e.message, true);
           return;
         }
+        lastApiErrorAt = new Date();
+        lastApiErrorMessage = e.message || "erro desconhecido";
+        updateApiStatus();
         document.getElementById("updatedAt").textContent = "Erro ao atualizar: " + e.message;
       }
     }
@@ -934,6 +993,7 @@
         const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          cache: "no-store",
           body: JSON.stringify({ username, password })
         });
         const data = await parseJsonResponse(response);
