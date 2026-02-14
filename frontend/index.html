@@ -587,6 +587,42 @@
       word-break: break-word;    
     }
 
+    .ram-chart-wrap {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px 12px;
+    }
+
+    .ram-chart-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .ram-chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f3f67;
+    }
+
+    .ram-chart-meta {
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    #ramChartCanvas {
+      display: block;
+      width: 100%;
+      height: 150px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
+    }
+
     @media (max-width: 900px) {
       .hero { min-height: 180px; padding: 24px 18px; }
       .hero h1 { font-size: 44px; }
@@ -665,6 +701,13 @@
             <div class="spec-label">Armazenamento</div>
             <div class="spec-value" id="diskSpec">--</div>
           </div>
+        </div>
+        <div class="ram-chart-wrap">
+          <div class="ram-chart-head">
+            <div class="ram-chart-title">Oscilação da RAM (tempo real)</div>
+            <div class="ram-chart-meta" id="ramChartMeta">Coletando amostras...</div>
+          </div>
+          <canvas id="ramChartCanvas"></canvas>
         </div>
       </article>
     </section>
@@ -759,10 +802,14 @@
     const USER_KEY = "portaleco_vps_monitor_user";
     const USER_ROLE_KEY = "portaleco_vps_monitor_role";
     const API_TIMEOUT_MS = 10000;
+    const RAM_POLL_MS = 3000;
+    const RAM_HISTORY_MAX_POINTS = 80;
     let pollHandle = null;
+    let ramPollHandle = null;
     let lastApiOkAt = null;
     let lastApiErrorAt = null;
     let lastApiErrorMessage = "";
+    const ramHistory = [];
 
     const fmtBytes = (n) => {
       const num = Number(n || 0);
@@ -815,6 +862,121 @@
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
 
+    const setRamChartMeta = (message) => {
+      const el = document.getElementById("ramChartMeta");
+      if (el) el.textContent = message;
+    };
+
+    const recordRamSample = (usedBytes, totalBytes) => {
+      const used = Number(usedBytes || 0);
+      const total = Number(totalBytes || 0);
+      if (!used || !total) return;
+      ramHistory.push({ t: Date.now(), used, total });
+      while (ramHistory.length > RAM_HISTORY_MAX_POINTS) {
+        ramHistory.shift();
+      }
+      renderRamChart();
+    };
+
+    const renderRamChart = () => {
+      const canvas = document.getElementById("ramChartCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(320, Math.floor(rect.width));
+      const height = 150;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const pad = { top: 12, right: 12, bottom: 20, left: 12 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+
+      ctx.strokeStyle = "#e5eef9";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (plotH * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+      }
+
+      if (ramHistory.length < 2) {
+        setRamChartMeta("Coletando amostras...");
+        return;
+      }
+
+      const points = ramHistory.map((s) => ({
+        used: s.used,
+        total: s.total,
+        pct: (s.used / s.total) * 100
+      }));
+      const minPct = Math.max(0, Math.min(...points.map((p) => p.pct)) - 2);
+      const maxPct = Math.min(100, Math.max(...points.map((p) => p.pct)) + 2);
+      const span = Math.max(1, maxPct - minPct);
+
+      const toX = (i) => pad.left + (i * plotW) / Math.max(1, points.length - 1);
+      const toY = (pct) => pad.top + (1 - (pct - minPct) / span) * plotH;
+
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const x = toX(i);
+        const y = toY(p.pct);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#2f6fb6";
+      ctx.stroke();
+
+      ctx.lineTo(toX(points.length - 1), pad.top + plotH);
+      ctx.lineTo(toX(0), pad.top + plotH);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(47, 111, 182, 0.12)";
+      ctx.fill();
+
+      const last = points[points.length - 1];
+      const lx = toX(points.length - 1);
+      const ly = toY(last.pct);
+      ctx.beginPath();
+      ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#12549e";
+      ctx.fill();
+
+      ctx.fillStyle = "#3f5f85";
+      ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillText(minPct.toFixed(1) + "%", pad.left, height - 5);
+      const maxText = maxPct.toFixed(1) + "%";
+      const maxTextWidth = ctx.measureText(maxText).width;
+      ctx.fillText(maxText, width - pad.right - maxTextWidth, height - 5);
+
+      setRamChartMeta(
+        "Uso atual: " + fmtNum(toGb(last.used)) + " GB / " + fmtNum(toGb(last.total)) + " GB" +
+        " (" + last.pct.toFixed(1) + "%)"
+      );
+    };
+
+    const startRamLivePolling = () => {
+      if (ramPollHandle) return;
+      ramPollHandle = setInterval(async () => {
+        try {
+          const systemRes = await apiFetch("/api/system");
+          const system = await parseJsonResponse(systemRes);
+          if (!systemRes.ok) return;
+          recordRamSample(system.memory?.used, system.memory?.total);
+        } catch (_) {
+          // silencioso para não poluir UI; o polling principal já exibe erro global
+        }
+      }, RAM_POLL_MS);
+    };
+
     const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
     const getUser = () => localStorage.getItem(USER_KEY) || "";
     const getRole = () => localStorage.getItem(USER_ROLE_KEY) || "";
@@ -846,6 +1008,10 @@
         clearInterval(pollHandle);
         pollHandle = null;
       }
+      if (ramPollHandle) {
+        clearInterval(ramPollHandle);
+        ramPollHandle = null;
+      }
     };
 
     const showDashboardView = () => {
@@ -860,6 +1026,7 @@
       if (!pollHandle) {
         pollHandle = setInterval(load, 10000);
       }
+      startRamLivePolling();
     };
 
     const updateApiStatus = () => {
@@ -969,6 +1136,7 @@
         document.getElementById("sysUptime").textContent =
           "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds) +
           " | Iniciado em: " + fmtDateTime(startedAt);
+        recordRamSample(system.memory?.used, system.memory?.total);
 
         const serviceCards = [
           {
@@ -1265,6 +1433,7 @@
     }
 
     bootstrapSession();
+    window.addEventListener("resize", renderRamChart);
   </script>
 </body>
 </html>
