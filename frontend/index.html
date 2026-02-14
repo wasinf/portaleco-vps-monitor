@@ -412,11 +412,25 @@
       margin-bottom: 6px;
     }
 
+    .sys-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .sys-head h2 {
+      margin: 0;
+      font-size: 28px;
+    }
+
     .sys-uptime {
       color: #1f3f67;
       font-size: 15px;
       font-weight: 700;
-      margin-bottom: 12px;
+      margin: 0;
+      text-align: right;
     }
 
     .sys-specs {
@@ -505,6 +519,13 @@
       .card, .card.full { grid-column: span 12; }
       .sys-specs { grid-template-columns: 1fr; }
       .services { grid-template-columns: 1fr; }
+      .sys-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .sys-uptime {
+        text-align: left;
+      }
     }
 
 /* Alinhar largura do banner com o card Sistema */
@@ -550,9 +571,11 @@
       </section>
 
       <article class="card full">
-        <h2>Sistema</h2>
+        <div class="sys-head">
+          <h2>Sistema</h2>
+          <div class="sys-uptime" id="sysUptime">Tempo ativo: --</div>
+        </div>
         <div class="sys-top" id="sysMeta">Carregando...</div>
-        <div class="sys-uptime" id="sysUptime">Tempo ativo: --</div>
         <div class="sys-specs">
           <div class="spec">
             <div class="spec-label">CPU</div>
