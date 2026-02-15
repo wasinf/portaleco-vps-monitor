@@ -413,13 +413,7 @@
       line-height: 1.25;
     }
 
-    .traffic-grid {
-      display: grid;
-      gap: 8px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .traffic-item {
+    .traffic-wrap {
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 10px;
@@ -427,18 +421,44 @@
       min-width: 0;
     }
 
-    .traffic-name {
-      font-weight: 700;
-      color: var(--ink);
-      margin-bottom: 4px;
+    .traffic-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
     }
 
-    .traffic-metrics {
+    .traffic-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f3f67;
+    }
+
+    .traffic-legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: #3f5f85;
+    }
+
+    .traffic-meta {
       color: var(--muted);
       font-size: 13px;
       line-height: 1.35;
       white-space: normal;
       overflow-wrap: anywhere;
+    }
+
+    #trafficChartCanvas {
+      display: block;
+      width: 100%;
+      height: 150px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
+      margin-bottom: 8px;
     }
 
     .api-status {
@@ -681,7 +701,6 @@
       .card, .card.full { grid-column: span 12; }
       .sys-specs { grid-template-columns: 1fr; }
       .services { grid-template-columns: 1fr; }
-      .traffic-grid { grid-template-columns: 1fr; }
       .sys-head {
         flex-direction: column;
         align-items: flex-start;
@@ -782,10 +801,18 @@
 
       <article class="card full">
         <h2>Tráfego de Rede</h2>
-        <div class="traffic-grid" id="trafficRows">
-          <div class="traffic-item">
-            <div class="traffic-name">Geral</div>
-            <div class="traffic-metrics">Carregando tráfego...</div>
+        <div class="traffic-wrap">
+          <div class="traffic-head">
+            <div class="traffic-title">Taxa de tráfego (Download + Upload)</div>
+            <div class="traffic-legend">
+              <span class="legend-item"><span class="legend-dot" style="background:#5165d6;"></span>Geral</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#e38b2a;"></span>chalana-api</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#2d9a6b;"></span>portaleco-vps-monitor</span>
+            </div>
+          </div>
+          <canvas id="trafficChartCanvas"></canvas>
+          <div class="traffic-meta" id="trafficMeta">
+            Coletando tráfego...
           </div>
         </div>
       </article>
@@ -870,12 +897,14 @@
     const API_TIMEOUT_MS = 10000;
     const RAM_POLL_MS = 3000;
     const RAM_HISTORY_MAX_POINTS = 80;
+    const TRAFFIC_HISTORY_MAX_POINTS = 80;
     let pollHandle = null;
     let ramPollHandle = null;
     let lastApiOkAt = null;
     let lastApiErrorAt = null;
     let lastApiErrorMessage = "";
     const ramHistory = [];
+    const trafficHistory = [];
 
     const fmtBytes = (n) => {
       const num = Number(n || 0);
@@ -937,6 +966,10 @@
 
     const setRamChartMeta = (message) => {
       const el = document.getElementById("ramChartMeta");
+      if (el) el.textContent = message;
+    };
+    const setTrafficMeta = (message) => {
+      const el = document.getElementById("trafficMeta");
       if (el) el.textContent = message;
     };
 
@@ -1053,6 +1086,123 @@
 
       setRamChartMeta(
         "RAM: " + last.ramPct.toFixed(1) + "% | CPU: " + last.cpuPct.toFixed(1) + "% | Armazenamento: " + last.diskPct.toFixed(1) + "%"
+      );
+    };
+
+    const recordTrafficSample = (traffic) => {
+      const apps = Array.isArray(traffic?.applications) ? traffic.applications : [];
+      const appMap = new Map(apps.map((a) => [String(a.app || ""), a]));
+      const generalRate = Number(traffic?.total?.rx_bps || 0) + Number(traffic?.total?.tx_bps || 0);
+      const chalana = appMap.get("chalana-api");
+      const portaleco = appMap.get("portaleco-vps-monitor");
+      const chalanaRate = Number(chalana?.rx_bps || 0) + Number(chalana?.tx_bps || 0);
+      const portalecoRate = Number(portaleco?.rx_bps || 0) + Number(portaleco?.tx_bps || 0);
+
+      trafficHistory.push({
+        t: Date.now(),
+        generalRate,
+        chalanaRate,
+        portalecoRate,
+        generalRx: Number(traffic?.total?.rx_bps || 0),
+        generalTx: Number(traffic?.total?.tx_bps || 0),
+        chalanaRx: Number(chalana?.rx_bps || 0),
+        chalanaTx: Number(chalana?.tx_bps || 0),
+        portalecoRx: Number(portaleco?.rx_bps || 0),
+        portalecoTx: Number(portaleco?.tx_bps || 0)
+      });
+
+      while (trafficHistory.length > TRAFFIC_HISTORY_MAX_POINTS) {
+        trafficHistory.shift();
+      }
+
+      renderTrafficChart();
+    };
+
+    const renderTrafficChart = () => {
+      const canvas = document.getElementById("trafficChartCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(320, Math.floor(rect.width));
+      const height = 150;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const pad = { top: 12, right: 12, bottom: 20, left: 12 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+
+      ctx.strokeStyle = "#e5eef9";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (plotH * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+      }
+
+      if (trafficHistory.length < 2) {
+        setTrafficMeta("Coletando tráfego...");
+        return;
+      }
+
+      const maxValue = Math.max(
+        1,
+        ...trafficHistory.map((p) => Math.max(p.generalRate, p.chalanaRate, p.portalecoRate))
+      );
+      const maxScale = maxValue * 1.15;
+
+      const toX = (i) => pad.left + (i * plotW) / Math.max(1, trafficHistory.length - 1);
+      const toY = (v) => pad.top + (1 - v / maxScale) * plotH;
+
+      const drawSeries = (key, color) => {
+        ctx.beginPath();
+        trafficHistory.forEach((p, i) => {
+          const x = toX(i);
+          const y = toY(p[key]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      };
+
+      drawSeries("generalRate", "#5165d6");
+      drawSeries("chalanaRate", "#e38b2a");
+      drawSeries("portalecoRate", "#2d9a6b");
+
+      const last = trafficHistory[trafficHistory.length - 1];
+      const markLast = (v, color) => {
+        const lx = toX(trafficHistory.length - 1);
+        const ly = toY(v);
+        ctx.beginPath();
+        ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      };
+      markLast(last.generalRate, "#5165d6");
+      markLast(last.chalanaRate, "#e38b2a");
+      markLast(last.portalecoRate, "#2d9a6b");
+
+      ctx.fillStyle = "#3f5f85";
+      ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillText("0 B/s", pad.left, height - 5);
+      const topLabel = fmtRate(maxScale);
+      const topWidth = ctx.measureText(topLabel).width;
+      ctx.fillText(topLabel, width - pad.right - topWidth, height - 5);
+
+      setTrafficMeta(
+        "Geral: ↓" + fmtRate(last.generalRx) + " ↑" + fmtRate(last.generalTx) +
+        " | chalana-api: ↓" + fmtRate(last.chalanaRx) + " ↑" + fmtRate(last.chalanaTx) +
+        " | portaleco-vps-monitor: ↓" + fmtRate(last.portalecoRx) + " ↑" + fmtRate(last.portalecoTx)
       );
     };
 
@@ -1276,42 +1426,7 @@
           '</div>';
         }).join("");
 
-        const appTraffic = Array.isArray(traffic.applications) ? traffic.applications : [];
-        const trafficCards = [];
-        if (traffic.total) {
-          trafficCards.push({
-            name: "Geral",
-            rxBytes: traffic.total.rx_bytes,
-            txBytes: traffic.total.tx_bytes,
-            rxRate: traffic.total.rx_bps,
-            txRate: traffic.total.tx_bps,
-            containers: []
-          });
-        }
-        appTraffic.forEach((item) => {
-          trafficCards.push({
-            name: item.app || "app",
-            rxBytes: item.rx_bytes,
-            txBytes: item.tx_bytes,
-            rxRate: item.rx_bps,
-            txRate: item.tx_bps,
-            containers: Array.isArray(item.containers) ? item.containers : []
-          });
-        });
-
-        document.getElementById("trafficRows").innerHTML = (trafficCards.map((item) => {
-          const containersInfo = item.containers.length
-            ? ("Containers: " + item.containers.join(", "))
-            : "Containers: todos";
-          return "<div class='traffic-item'>" +
-            "<div class='traffic-name'>" + item.name + "</div>" +
-            "<div class='traffic-metrics'>" +
-              "Download: " + fmtBytes(item.rxBytes) + " (" + fmtRate(item.rxRate) + ")" +
-              " | Upload: " + fmtBytes(item.txBytes) + " (" + fmtRate(item.txRate) + ")" +
-              "<br>" + containersInfo +
-            "</div>" +
-          "</div>";
-        }).join("")) || "<div class='traffic-item'><div class='traffic-name'>Geral</div><div class='traffic-metrics'>Sem dados de tráfego.</div></div>";
+        recordTrafficSample(traffic);
 
         document.getElementById("dockerMeta").textContent =
           "Total: " + (docker.total || 0) + " | Running: " + (docker.running || 0);
@@ -1566,6 +1681,7 @@
 
     bootstrapSession();
     window.addEventListener("resize", renderRamChart);
+    window.addEventListener("resize", renderTrafficChart);
   </script>
 </body>
 </html>
