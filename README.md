@@ -86,11 +86,17 @@ RUN_DEPLOY_PRECHECK=false ./deploy.sh prod
 ## Endpoints de autenticação
 
 - `POST /api/auth/login`
+- `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `POST /api/auth/change-password`
 - `GET /api/auth/users` (admin)
 - `POST /api/auth/users` (admin)
 - `PATCH /api/auth/users/:username/active` (admin)
+
+Sessao web:
+
+- login grava cookie `HttpOnly` (sem uso de token em `localStorage`)
+- frontend envia credenciais por cookie com `credentials: include`
 
 ## Observabilidade
 
