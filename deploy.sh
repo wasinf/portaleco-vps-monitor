@@ -8,6 +8,7 @@ echo "===================================="
 cd /opt/apps/portaleco-vps-monitor || exit
 
 ENVIRONMENT="${1:-prod}"
+RUN_DEPLOY_PRECHECK="${RUN_DEPLOY_PRECHECK:-true}"
 
 if [ "$ENVIRONMENT" = "prod" ]; then
   COMPOSE_FILE="docker-compose.yml"
@@ -28,6 +29,13 @@ echo "Ambiente: $ENVIRONMENT"
 echo "Atualizando branch main..."
 git checkout main
 git pull --ff-only
+
+if [ "$RUN_DEPLOY_PRECHECK" = "true" ] && [ -x "./scripts/deploy_precheck.sh" ]; then
+  echo "Executando precheck de deploy (${ENVIRONMENT})..."
+  ./scripts/deploy_precheck.sh "$ENVIRONMENT"
+else
+  echo "Precheck de deploy ignorado (RUN_DEPLOY_PRECHECK=${RUN_DEPLOY_PRECHECK})."
+fi
 
 cd infra || exit
 

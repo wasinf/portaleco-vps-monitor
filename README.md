@@ -73,8 +73,15 @@ O script faz smoke test automatico apos subir:
 
 - API: `GET /health`
 - Frontend: `GET /`
+- Precheck de ambiente (`scripts/deploy_precheck.sh`)
 
 Se algum teste falhar, o deploy termina com erro.
+
+Para ignorar o precheck (apenas em emergencia):
+
+```bash
+RUN_DEPLOY_PRECHECK=false ./deploy.sh prod
+```
 
 ## Endpoints de autenticação
 
@@ -166,6 +173,18 @@ Exemplo:
 cd /opt/apps/portaleco-vps-monitor
 ./scripts/release_preflight.sh
 ```
+
+## Precheck de deploy
+
+Script: `./scripts/deploy_precheck.sh [prod|staging]`
+
+Valida por ambiente:
+
+- arquivo `.env` correspondente
+- `AUTH_FAIL_ON_INSECURE_DEFAULTS=true`
+- `ALLOWED_ORIGINS` com `https://`
+- `AUTH_TOKEN_SECRET` e `AUTH_PASSWORD` fora de default e com tamanho minimo
+- `docker compose config` valido
 
 ## Padrao de commit PT-BR
 
