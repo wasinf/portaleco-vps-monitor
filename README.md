@@ -217,3 +217,23 @@ cd /opt/apps/portaleco-vps-monitor
 ```
 
 Depois disso, ao usar `git commit` sem `-m`, o editor abre com o template PT-BR.
+
+## Fluxo Git automatico
+
+Comando unico para criar/entrar na branch e subir implementacao:
+
+```bash
+BRANCH="<tipo>/<descricao-curta>"; git rev-parse --verify "$BRANCH" >/dev/null 2>&1 && git checkout "$BRANCH" || git checkout -b "$BRANCH"; npm run git:auto
+```
+
+Padrao de branch:
+
+- `fix/...` para correcao
+- `feat/...` para funcionalidade nova
+- `chore/...` para manutencao
+
+Observacoes:
+
+- `npm run git:auto` usa `scripts/git_auto.sh`
+- o script faz `git add -A`, gera commit em PT-BR com base no nome da branch e faz push
+- para customizar descricao do commit: `GIT_AUTO_DESC="sua descricao" npm run git:auto`
