@@ -171,7 +171,7 @@ Exemplo simples (backup diario + healthcheck a cada 5 min):
 
 ## Preflight de release
 
-Script: `./scripts/release_preflight.sh`
+Script: `./scripts/release_preflight.sh [prod|staging|both]`
 
 Valida automaticamente:
 
@@ -186,7 +186,9 @@ Exemplo:
 
 ```bash
 cd /opt/apps/portaleco-vps-monitor
-./scripts/release_preflight.sh
+./scripts/release_preflight.sh prod
+./scripts/release_preflight.sh staging
+./scripts/release_preflight.sh both
 ```
 
 ## Security check
@@ -272,6 +274,7 @@ Opcoes uteis:
 
 - `RELEASE_GATE_SMOKE_PUBLIC=false` para pular smoke publico no gate
 - `RELEASE_GATE_STRICT_ADMIN_SURFACE=true` para ativar falha em superficie admin publica
+- `RELEASE_GATE_STRICT_HOST_SURFACE=true` para ativar falha em portas admin publicas no host
 
 ## Rotacao de credenciais auth
 

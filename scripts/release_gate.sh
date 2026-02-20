@@ -10,12 +10,13 @@ if [ "$ENVIRONMENT" != "prod" ] && [ "$ENVIRONMENT" != "staging" ]; then
 fi
 
 STRICT_ADMIN_SURFACE="${RELEASE_GATE_STRICT_ADMIN_SURFACE:-false}"
+STRICT_HOST_SURFACE="${RELEASE_GATE_STRICT_HOST_SURFACE:-false}"
 SMOKE_PUBLIC="${RELEASE_GATE_SMOKE_PUBLIC:-true}"
 
 steps=(
   "Precheck de deploy|$ROOT_DIR/scripts/deploy_precheck.sh $ENVIRONMENT"
   "Smoke pos-deploy|RELEASE_SMOKE_PUBLIC=$SMOKE_PUBLIC $ROOT_DIR/scripts/release_smoke.sh $ENVIRONMENT"
-  "Preflight final|SECURITY_STRICT_ADMIN_SURFACE=$STRICT_ADMIN_SURFACE $ROOT_DIR/scripts/release_preflight.sh"
+  "Preflight final|SECURITY_STRICT_ADMIN_SURFACE=$STRICT_ADMIN_SURFACE HOST_SURFACE_STRICT_ADMIN=$STRICT_HOST_SURFACE $ROOT_DIR/scripts/release_preflight.sh $ENVIRONMENT"
 )
 
 fails=0
@@ -26,6 +27,7 @@ echo "PortalEco Release Gate (${ENVIRONMENT})"
 echo "======================================="
 echo "Smoke publico: ${SMOKE_PUBLIC}"
 echo "Modo estrito superficie admin: ${STRICT_ADMIN_SURFACE}"
+echo "Modo estrito superficie host: ${STRICT_HOST_SURFACE}"
 
 for entry in "${steps[@]}"; do
   index=$((index + 1))

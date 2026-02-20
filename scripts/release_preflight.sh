@@ -6,6 +6,12 @@ INFRA_DIR="$ROOT_DIR/infra"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
 MAX_BACKUP_AGE_HOURS="${MAX_BACKUP_AGE_HOURS:-48}"
 HOST_SURFACE_STRICT_ADMIN="${HOST_SURFACE_STRICT_ADMIN:-false}"
+SCOPE="${1:-both}"
+
+if [ "$SCOPE" != "prod" ] && [ "$SCOPE" != "staging" ] && [ "$SCOPE" != "both" ]; then
+  echo "Uso: $0 [prod|staging|both]"
+  exit 1
+fi
 
 errors=0
 warnings=0
@@ -18,6 +24,11 @@ env_get() {
   local file="$1"
   local key="$2"
   awk -F= -v k="$key" '$1==k{print substr($0, index($0,$2)); exit}' "$file" 2>/dev/null || true
+}
+
+should_check() {
+  local label="$1"
+  [ "$SCOPE" = "both" ] || [ "$SCOPE" = "$label" ]
 }
 
 check_env_file() {
@@ -104,17 +115,12 @@ check_recent_backup() {
 }
 
 check_security() {
+  local label="$1"
   if [ -x "$ROOT_DIR/scripts/security_check.sh" ]; then
-    if "$ROOT_DIR/scripts/security_check.sh" prod; then
-      ok "security_check prod: concluido"
+    if "$ROOT_DIR/scripts/security_check.sh" "$label"; then
+      ok "security_check ${label}: concluido"
     else
-      fail "security_check prod: falhou"
-    fi
-
-    if "$ROOT_DIR/scripts/security_check.sh" staging; then
-      ok "security_check staging: concluido"
-    else
-      fail "security_check staging: falhou"
+      fail "security_check ${label}: falhou"
     fi
   else
     warn "security_check.sh ausente/sem permissao de execucao"
@@ -134,20 +140,26 @@ check_host_surface() {
 }
 
 echo "== Preflight portaleco-vps-monitor =="
+echo "Escopo: ${SCOPE}"
 
-check_env_file "$INFRA_DIR/.env" "prod"
-check_env_file "$INFRA_DIR/.env.staging" "staging"
+if should_check prod; then
+  check_env_file "$INFRA_DIR/.env" "prod"
+  check_container "portaleco-vps-monitor-backend"
+  check_container "portaleco-vps-monitor-frontend"
+  check_security "prod"
+fi
 
-check_container "portaleco-vps-monitor-backend"
-check_container "portaleco-vps-monitor-frontend"
-check_container "portaleco-vps-monitor-backend-staging"
-check_container "portaleco-vps-monitor-frontend-staging"
+if should_check staging; then
+  check_env_file "$INFRA_DIR/.env.staging" "staging"
+  check_container "portaleco-vps-monitor-backend-staging"
+  check_container "portaleco-vps-monitor-frontend-staging"
+  check_security "staging"
+fi
 
 check_cron_entry "./scripts/backup_create.sh" "backup_create"
 check_cron_entry "./scripts/health_alert_check.sh" "health_alert_check"
 
 check_recent_backup
-check_security
 check_host_surface
 
 echo "== Resultado =="
