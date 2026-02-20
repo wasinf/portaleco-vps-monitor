@@ -209,6 +209,25 @@ cd /opt/apps/portaleco-vps-monitor
 ./scripts/rotate_auth_secrets.sh prod --apply
 ```
 
+## Sincronizacao de senha com .env
+
+Script: `./scripts/auth_sync_from_env.sh [prod|staging]`
+
+Uso recomendado quando houver divergencia entre senha do `.env` e senha persistida no SQLite.
+
+Comportamento:
+
+- se a senha do `.env` ja estiver valida no banco: nao altera nada
+- se houver divergencia: atualiza apenas o hash da senha do usuario `AUTH_USERNAME`
+
+Exemplos:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/auth_sync_from_env.sh prod
+./scripts/auth_sync_from_env.sh staging
+```
+
 ## Padrao de commit PT-BR
 
 Template de commit disponivel em:
