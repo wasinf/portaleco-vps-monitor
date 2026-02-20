@@ -10,6 +10,12 @@ if [ "$current_branch" = "HEAD" ]; then
   exit 1
 fi
 
+if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
+  echo "FAIL: nao e permitido usar git:auto em ${current_branch}."
+  echo "Use branch de trabalho (fix/..., feat/..., chore/...)."
+  exit 1
+fi
+
 git add -A
 
 if git diff --cached --quiet; then
