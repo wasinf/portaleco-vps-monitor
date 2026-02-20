@@ -233,6 +233,29 @@ Valida por ambiente:
 - `AUTH_TOKEN_SECRET` e `AUTH_PASSWORD` fora de default e com tamanho minimo
 - `docker compose config` valido
 
+## Gate de release (comando unico)
+
+Script: `./scripts/release_gate.sh [prod|staging]`
+
+Executa em sequencia:
+
+- `deploy_precheck.sh`
+- `release_smoke.sh`
+- `release_preflight.sh`
+
+Exemplos:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/release_gate.sh prod
+./scripts/release_gate.sh staging
+```
+
+Opcoes uteis:
+
+- `RELEASE_GATE_SMOKE_PUBLIC=false` para pular smoke publico no gate
+- `RELEASE_GATE_STRICT_ADMIN_SURFACE=true` para ativar falha em superficie admin publica
+
 ## Rotacao de credenciais auth
 
 Script: `./scripts/rotate_auth_secrets.sh [prod|staging|both] [--apply]`

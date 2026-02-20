@@ -19,6 +19,7 @@ else
 fi
 
 errors=0
+SMOKE_PUBLIC="${RELEASE_SMOKE_PUBLIC:-true}"
 ok() { echo "OK: $*"; }
 fail() { echo "FAIL: $*"; errors=$((errors + 1)); }
 
@@ -47,26 +48,30 @@ else
   fail "frontend / via loopback do container"
 fi
 
-origin="${RELEASE_SMOKE_ORIGIN:-}"
-if [ -z "$origin" ] && [ -f "$ENV_FILE" ]; then
-  origin="$(first_origin "$(env_get "$ENV_FILE" "ALLOWED_ORIGINS")")"
-fi
-
-if [ -n "$origin" ]; then
-  if curl -fsS -o /dev/null --max-time 10 "$origin/"; then
-    ok "frontend publico acessivel em ${origin}/"
-  else
-    fail "frontend publico indisponivel em ${origin}/"
+if [ "$SMOKE_PUBLIC" = "true" ]; then
+  origin="${RELEASE_SMOKE_ORIGIN:-}"
+  if [ -z "$origin" ] && [ -f "$ENV_FILE" ]; then
+    origin="$(first_origin "$(env_get "$ENV_FILE" "ALLOWED_ORIGINS")")"
   fi
 
-  auth_status="$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "$origin/api/auth/me" || true)"
-  if [ "$auth_status" = "200" ] || [ "$auth_status" = "401" ] || [ "$auth_status" = "403" ]; then
-    ok "backend publico respondeu em /api/auth/me (HTTP ${auth_status})"
+  if [ -n "$origin" ]; then
+    if curl -fsS -o /dev/null --max-time 10 "$origin/"; then
+      ok "frontend publico acessivel em ${origin}/"
+    else
+      fail "frontend publico indisponivel em ${origin}/"
+    fi
+
+    auth_status="$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "$origin/api/auth/me" || true)"
+    if [ "$auth_status" = "200" ] || [ "$auth_status" = "401" ] || [ "$auth_status" = "403" ]; then
+      ok "backend publico respondeu em /api/auth/me (HTTP ${auth_status})"
+    else
+      fail "backend publico retornou HTTP ${auth_status:-000} em /api/auth/me"
+    fi
   else
-    fail "backend publico retornou HTTP ${auth_status:-000} em /api/auth/me"
+    echo "WARN: smoke publico ignorado (RELEASE_SMOKE_ORIGIN/ALLOWED_ORIGINS ausente)."
   fi
 else
-  echo "WARN: smoke publico ignorado (RELEASE_SMOKE_ORIGIN/ALLOWED_ORIGINS ausente)."
+  echo "WARN: smoke publico desativado (RELEASE_SMOKE_PUBLIC=${SMOKE_PUBLIC})."
 fi
 
 echo "== Resultado smoke =="
