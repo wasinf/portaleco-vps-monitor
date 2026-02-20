@@ -179,12 +179,30 @@ Valida automaticamente:
 - containers `running/healthy` em prod e staging
 - presenca das entradas de cron esperadas
 - existencia de backup recente em `backups/`
+- check de seguranca HTTP/rede via `scripts/security_check.sh` (prod e staging)
 
 Exemplo:
 
 ```bash
 cd /opt/apps/portaleco-vps-monitor
 ./scripts/release_preflight.sh
+```
+
+## Security check
+
+Script: `./scripts/security_check.sh [prod|staging]`
+
+Valida:
+
+- headers de seguranca (HSTS, CSP, nosniff, Referrer-Policy)
+- exposicao de portas publicas (`0.0.0.0`) com allowlist de servicos esperados
+
+Exemplos:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/security_check.sh prod
+./scripts/security_check.sh staging
 ```
 
 ## Precheck de deploy

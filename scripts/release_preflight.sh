@@ -102,6 +102,24 @@ check_recent_backup() {
   fi
 }
 
+check_security() {
+  if [ -x "$ROOT_DIR/scripts/security_check.sh" ]; then
+    if "$ROOT_DIR/scripts/security_check.sh" prod; then
+      ok "security_check prod: concluido"
+    else
+      fail "security_check prod: falhou"
+    fi
+
+    if "$ROOT_DIR/scripts/security_check.sh" staging; then
+      ok "security_check staging: concluido"
+    else
+      fail "security_check staging: falhou"
+    fi
+  else
+    warn "security_check.sh ausente/sem permissao de execucao"
+  fi
+}
+
 echo "== Preflight portaleco-vps-monitor =="
 
 check_env_file "$INFRA_DIR/.env" "prod"
@@ -116,6 +134,7 @@ check_cron_entry "./scripts/backup_create.sh" "backup_create"
 check_cron_entry "./scripts/health_alert_check.sh" "health_alert_check"
 
 check_recent_backup
+check_security
 
 echo "== Resultado =="
 echo "Erros: $errors"
