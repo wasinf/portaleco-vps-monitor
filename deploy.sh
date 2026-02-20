@@ -28,7 +28,7 @@ fi
 echo "Ambiente: $ENVIRONMENT"
 echo "Atualizando branch main..."
 git checkout main
-git pull --ff-only
+git pull --ff-only origin main
 
 if [ "$RUN_DEPLOY_PRECHECK" = "true" ] && [ -x "./scripts/deploy_precheck.sh" ]; then
   echo "Executando precheck de deploy (${ENVIRONMENT})..."
