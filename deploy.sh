@@ -12,13 +12,13 @@ ENVIRONMENT="${1:-prod}"
 if [ "$ENVIRONMENT" = "prod" ]; then
   COMPOSE_FILE="docker-compose.yml"
   ENV_FILE=".env"
-  API_PORT="4000"
-  FRONTEND_PORT="4001"
+  BACKEND_CONTAINER="portaleco-vps-monitor-backend"
+  FRONTEND_CONTAINER="portaleco-vps-monitor-frontend"
 elif [ "$ENVIRONMENT" = "staging" ]; then
   COMPOSE_FILE="docker-compose.staging.yml"
   ENV_FILE=".env.staging"
-  API_PORT="4100"
-  FRONTEND_PORT="4101"
+  BACKEND_CONTAINER="portaleco-vps-monitor-backend-staging"
+  FRONTEND_CONTAINER="portaleco-vps-monitor-frontend-staging"
 else
   echo "Uso: ./deploy.sh [prod|staging]"
   exit 1
@@ -46,14 +46,22 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
 
 echo "Validando saude dos servicos..."
 for i in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:${API_PORT}/health" >/dev/null 2>&1 && \
-     curl -fsS "http://127.0.0.1:${FRONTEND_PORT}/" >/dev/null 2>&1; then
+  backend_running="$(docker inspect -f '{{.State.Running}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "false")"
+  frontend_running="$(docker inspect -f '{{.State.Running}}' "$FRONTEND_CONTAINER" 2>/dev/null || echo "false")"
+  backend_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "missing")"
+  frontend_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$FRONTEND_CONTAINER" 2>/dev/null || echo "missing")"
+
+  if [ "$backend_running" = "true" ] && [ "$frontend_running" = "true" ] && \
+     { [ "$backend_health" = "healthy" ] || [ "$backend_health" = "none" ]; } && \
+     { [ "$frontend_health" = "healthy" ] || [ "$frontend_health" = "none" ]; }; then
     echo "Servicos OK (${ENVIRONMENT})"
     break
   fi
 
   if [ "$i" -eq 30 ]; then
     echo "Falha: servicos nao ficaram saudaveis apos deploy."
+    echo "backend: running=${backend_running}, health=${backend_health}"
+    echo "frontend: running=${frontend_running}, health=${frontend_health}"
     docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
     exit 1
   fi

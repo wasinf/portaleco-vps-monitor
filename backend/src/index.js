@@ -16,6 +16,11 @@ const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || "change-this-token-se
 const AUTH_TOKEN_TTL_SECONDS = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 12);
 const AUTH_DB_PATH = process.env.AUTH_DB_PATH || "/data/auth.db";
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
+const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const AUTH_FAIL_ON_INSECURE_DEFAULTS = String(process.env.AUTH_FAIL_ON_INSECURE_DEFAULTS || "false").toLowerCase() === "true";
 const authStore = openAuthStore(AUTH_DB_PATH);
 
 const newRequestId = () => {
@@ -46,7 +51,17 @@ const logJson = (level, payload) => {
   console.log(JSON.stringify(record));
 };
 
-app.use(cors());
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Requests sem Origin (curl, healthchecks internos) continuam permitidos.
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.length === 0) return callback(null, false);
+    return callback(null, ALLOWED_ORIGINS.includes(origin));
+  },
+  credentials: false
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use((req, res, next) => {
   const startNs = process.hrtime.bigint();
@@ -213,6 +228,49 @@ const dockerApi = (path) =>
     req.end();
   });
 
+const isDockerNotFoundError = (err) => {
+  const msg = String(err && err.message ? err.message : err || "").toLowerCase();
+  return msg.includes("docker api status 404") || msg.includes("no such container") || msg.includes("no such object");
+};
+
+const dockerContainerExists = async (id) => {
+  const containerId = String(id || "").trim();
+  if (!containerId) return false;
+  try {
+    await dockerApi(`/containers/${containerId}/json`);
+    return true;
+  } catch (err) {
+    if (isDockerNotFoundError(err)) return false;
+    throw err;
+  }
+};
+
+const isMonitorOrphanContainer = (container) => {
+  const rawName = Array.isArray(container?.Names) && container.Names[0]
+    ? String(container.Names[0]).replace(/^\//, "")
+  : "";
+  const state = String(container?.State || "").toLowerCase();
+  const isStopped = state !== "running";
+  return isStopped && /^[a-f0-9]{12}_portaleco-vps-monitor-(backend|frontend)$/i.test(rawName);
+};
+
+const getContainerName = (container) =>
+  Array.isArray(container?.Names) && container.Names[0]
+    ? String(container.Names[0]).replace(/^\//, "")
+    : "";
+
+const deriveAutoAppName = (container) => {
+  const labels = container?.Labels || {};
+  const name = getContainerName(container);
+  const composeProject = String(labels["com.docker.compose.project"] || "").trim();
+  if (composeProject) return composeProject;
+
+  if (name.startsWith("cloudflared")) return "cloudflared";
+  if (name.startsWith("nc-empresa")) return "nc-empresa";
+  if (name.startsWith("nc-familia")) return "nc-familia";
+  return name || "desconhecido";
+};
+
 const cpuSnapshot = () => {
   const cpus = os.cpus();
   let idle = 0;
@@ -244,15 +302,33 @@ const getCpuPercent = () =>
 
 const getDiskUsage = () =>
   new Promise((resolve) => {
-    exec("df -B1 / | tail -1", (err, stdout) => {
+    exec("df -B1 --output=target,size,used,pcent -x tmpfs -x devtmpfs -x overlay -x squashfs -x nsfs", (err, stdout) => {
       if (err || !stdout) {
-        return resolve({ total: 0, used: 0, percent: 0 });
+        return resolve({ total: 0, used: 0, percent: 0, volumes: [] });
       }
-      const cols = stdout.trim().split(/\s+/);
-      const total = Number(cols[1] || 0);
-      const used = Number(cols[2] || 0);
+      const lines = String(stdout || "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      const rows = lines.slice(1);
+      const volumes = rows
+        .map((line) => {
+          const cols = line.split(/\s+/);
+          const mount = String(cols[0] || "");
+          const total = Number(cols[1] || 0);
+          const used = Number(cols[2] || 0);
+          const pctRaw = String(cols[3] || "").replace("%", "");
+          const percent = Number(pctRaw || 0);
+          return { mount, total, used, percent };
+        })
+        .filter((v) => v.mount && Number.isFinite(v.total) && v.total > 0)
+        .sort((a, b) => a.mount.localeCompare(b.mount, "pt-BR"));
+
+      const total = volumes.reduce((sum, v) => sum + Number(v.total || 0), 0);
+      const used = volumes.reduce((sum, v) => sum + Number(v.used || 0), 0);
       const percent = total > 0 ? Number(((used / total) * 100).toFixed(2)) : 0;
-      resolve({ total, used, percent });
+      resolve({ total, used, percent, volumes });
     });
   });
 
@@ -487,9 +563,26 @@ app.get("/api/system", async (req, res) => {
 app.get("/api/docker", async (req, res) => {
   try {
     const containersRaw = await dockerApi("/containers/json?all=1");
-    const items = (containersRaw || []).map((c) => ({
+    const list = Array.isArray(containersRaw) ? containersRaw : [];
+
+    // Alguns hosts com Docker bugado retornam containers "fantasma" no /containers/json
+    // que falham em /containers/{id}/json (404/no such object). Filtramos antes de exibir.
+    const checks = await Promise.all(
+      list.map(async (c) => ({
+        container: c,
+        exists: await dockerContainerExists(c?.Id)
+      }))
+    );
+
+    const realContainers = checks
+      .filter((entry) => entry.exists)
+      .filter((entry) => !isMonitorOrphanContainer(entry.container))
+      .map((entry) => entry.container);
+
+    const items = realContainers.map((c) => ({
       name: (Array.isArray(c.Names) && c.Names[0] ? c.Names[0].replace(/^\//, "") : ""),
       image: c.Image || "",
+      state: String(c.State || "").toLowerCase(),
       status: c.Status || "",
       running: c.State === "running",
       uptime: c.Status || "",
@@ -559,25 +652,38 @@ app.get("/api/traffic", async (req, res) => {
     const totalsRate = rateFromPrevious(trafficState.totals, totalsCurrent, nowMs);
     trafficState.totals = totalsCurrent;
 
-    const appMap = {
-      "chalana-api": (name) => name === "chalana-api" || name === "chalana",
-      "portaleco-vps-monitor": (name) => name.startsWith("portaleco-vps-monitor")
-    };
-    const byApp = Object.entries(appMap).map(([app, matcher]) => {
-      const items = containerTraffic.filter((c) => matcher(c.name));
-      const rxBytes = items.reduce((sum, c) => sum + Number(c.rx_bytes || 0), 0);
-      const txBytes = items.reduce((sum, c) => sum + Number(c.tx_bytes || 0), 0);
-      const rxBps = items.reduce((sum, c) => sum + Number(c.rx_bps || 0), 0);
-      const txBps = items.reduce((sum, c) => sum + Number(c.tx_bps || 0), 0);
-      return {
-        app,
-        containers: items.map((c) => c.name),
-        rx_bytes: rxBytes,
-        tx_bytes: txBytes,
-        rx_bps: Number(rxBps.toFixed(2)),
-        tx_bps: Number(txBps.toFixed(2))
-      };
+    const byId = new Map(containerTraffic.map((c) => [c.id, c]));
+    const grouped = new Map();
+    runningContainers.forEach((container) => {
+      const id = String(container?.Id || "");
+      const traffic = byId.get(id);
+      if (!traffic) return;
+      const app = deriveAutoAppName(container);
+      if (!grouped.has(app)) {
+        grouped.set(app, {
+          app,
+          containers: [],
+          rx_bytes: 0,
+          tx_bytes: 0,
+          rx_bps: 0,
+          tx_bps: 0
+        });
+      }
+      const item = grouped.get(app);
+      item.containers.push(traffic.name);
+      item.rx_bytes += Number(traffic.rx_bytes || 0);
+      item.tx_bytes += Number(traffic.tx_bytes || 0);
+      item.rx_bps += Number(traffic.rx_bps || 0);
+      item.tx_bps += Number(traffic.tx_bps || 0);
     });
+
+    const byApp = Array.from(grouped.values())
+      .map((item) => ({
+        ...item,
+        rx_bps: Number(item.rx_bps.toFixed(2)),
+        tx_bps: Number(item.tx_bps.toFixed(2))
+      }))
+      .sort((a, b) => (Number(b.rx_bps || 0) + Number(b.tx_bps || 0)) - (Number(a.rx_bps || 0) + Number(a.tx_bps || 0)));
 
     return res.json({
       status: "ok",
@@ -601,23 +707,48 @@ app.get("/api/traffic", async (req, res) => {
 });
 
 app.get("/api/services", async (req, res) => {
-  const targets = ["chalana-api", "firebird25", "nginx-proxy-manager", "cloudflared"];
   try {
     const containersRaw = await dockerApi("/containers/json?all=1");
-    const map = new Map();
-    (containersRaw || []).forEach((c) => {
-      const name = Array.isArray(c.Names) && c.Names[0] ? c.Names[0].replace(/^\//, "") : "";
-      map.set(name, c.State === "running");
-    });
+    const list = Array.isArray(containersRaw) ? containersRaw : [];
+
+    const checks = await Promise.all(
+      list.map(async (c) => ({
+        container: c,
+        exists: await dockerContainerExists(c?.Id)
+      }))
+    );
+    const realContainers = checks
+      .filter((entry) => entry.exists)
+      .filter((entry) => !isMonitorOrphanContainer(entry.container))
+      .map((entry) => entry.container);
+
+    const servicesList = realContainers
+      .map((c) => {
+        const name = getContainerName(c);
+        const online = String(c?.State || "").toLowerCase() === "running";
+        const image = String(c?.Image || "");
+        const network = String(c?.HostConfig?.NetworkMode || "");
+        return {
+          name,
+          online,
+          detail: "Imagem: " + image + (network ? " | Rede: " + network : "")
+        };
+      })
+      .filter((s) => s.name)
+      .sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1;
+        return a.name.localeCompare(b.name, "pt-BR");
+      });
 
     const services = {};
-    targets.forEach((name) => {
-      services[name] = Boolean(map.get(name));
+    servicesList.forEach((item) => {
+      services[item.name] = item.online;
     });
 
     return res.json({
       status: "ok",
-      services
+      services,
+      items: servicesList
     });
   } catch (err) {
     return res.status(500).json({
@@ -675,7 +806,10 @@ app.get("/api/tunnel", async (req, res) => {
     const containersRaw = await dockerApi("/containers/json?all=1");
     const cf = (containersRaw || []).find((c) =>
       Array.isArray(c.Names) &&
-      c.Names.some((n) => n.replace(/^\//, "") === "cloudflared")
+      c.Names.some((n) => {
+        const clean = n.replace(/^\//, "");
+        return clean === "cloudflared" || clean === "cloudflared-portal-eco";
+      })
     );
 
     const running = Boolean(cf && cf.State === "running");
@@ -683,11 +817,14 @@ app.get("/api/tunnel", async (req, res) => {
         let registered = false;
     try {
       const socketPath = "/var/run/docker.sock";
+      const targetName = Array.isArray(cf?.Names) && cf.Names[0]
+        ? cf.Names[0].replace(/^\//, "")
+        : "cloudflared";
       const logs = await new Promise((resolve, reject) => {
         const req = http.request(
           {
             socketPath,
-            path: "/containers/cloudflared/logs?stdout=1&stderr=1&tail=200",
+            path: `/containers/${encodeURIComponent(targetName)}/logs?stdout=1&stderr=1&tail=200`,
             method: "GET"
           },
           (resp) => {
@@ -724,6 +861,17 @@ app.get("/api/tunnel", async (req, res) => {
 });
 
 app.listen(PORT, () => {
+  if (AUTH_FAIL_ON_INSECURE_DEFAULTS) {
+    if (AUTH_PASSWORD === "change-me") {
+      console.error("AUTH_PASSWORD esta no valor padrao; ajuste antes de iniciar.");
+      process.exit(1);
+    }
+    if (AUTH_TOKEN_SECRET === "change-this-token-secret") {
+      console.error("AUTH_TOKEN_SECRET esta no valor padrao; ajuste antes de iniciar.");
+      process.exit(1);
+    }
+  }
+
   if (AUTH_ENABLED) {
     try {
       authStore.ensureUser(AUTH_USERNAME, AUTH_PASSWORD, "admin");
@@ -738,6 +886,11 @@ app.listen(PORT, () => {
   }
   if (AUTH_ENABLED && AUTH_TOKEN_SECRET === "change-this-token-secret") {
     console.warn("AUTH_TOKEN_SECRET esta no valor padrao; altere em producao.");
+  }
+  if (ALLOWED_ORIGINS.length > 0) {
+    console.log("cors allowlist ativo:", ALLOWED_ORIGINS.join(", "));
+  } else {
+    console.warn("ALLOWED_ORIGINS vazio; CORS para origens externas esta desativado.");
   }
   console.log(`infra-dashboard-backend running on port ${PORT}`);
 });

@@ -356,20 +356,55 @@
 
     #dockerRows td:nth-child(3),
     #dockerRows td:nth-child(4) {
-      white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 0;
+    }
+
+    .collapsible-cell {
+      cursor: pointer;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .collapsible-cell .short,
+    .collapsible-cell .full {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .collapsible-cell .full {
+      display: none;
+    }
+
+    .collapsible-cell.expanded .short {
+      display: none;
+    }
+
+    .collapsible-cell.expanded .full {
+      display: inline;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .st {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       padding: 4px 10px;
       border-radius: 999px;
       font-weight: bold;
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 0.4px;
+      min-width: 146px;
+      line-height: 1;
+      box-sizing: border-box;
     }
 
     .st-run {
@@ -378,10 +413,22 @@
       border: 1px solid #9dc5f2;
     }
 
+    .st-healthy {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
     .st-stop {
       background: #ffe0e0;
       color: #9b2c2c;
       border: 1px solid #f0b3b3;
+    }
+
+    .st-info {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
     }
 
     .services {
@@ -804,11 +851,7 @@
         <div class="traffic-wrap">
           <div class="traffic-head">
             <div class="traffic-title">Taxa de tráfego (Download + Upload)</div>
-            <div class="traffic-legend">
-              <span class="legend-item"><span class="legend-dot" style="background:#5165d6;"></span>Geral</span>
-              <span class="legend-item"><span class="legend-dot" style="background:#e38b2a;"></span>chalana-api</span>
-              <span class="legend-item"><span class="legend-dot" style="background:#2d9a6b;"></span>portaleco-vps-monitor</span>
-            </div>
+            <div class="traffic-legend" id="trafficLegend"></div>
           </div>
           <canvas id="trafficChartCanvas"></canvas>
           <div class="traffic-meta" id="trafficMeta">
@@ -898,6 +941,8 @@
     const RAM_POLL_MS = 3000;
     const RAM_HISTORY_MAX_POINTS = 80;
     const TRAFFIC_HISTORY_MAX_POINTS = 80;
+    const TRAFFIC_SERIES_LIMIT = 4;
+    const TRAFFIC_COLORS = ["#e38b2a", "#2d9a6b", "#9b59b6", "#27a3a3", "#c95d2e", "#5b6fd9"];
     let pollHandle = null;
     let ramPollHandle = null;
     let lastApiOkAt = null;
@@ -964,6 +1009,50 @@
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
 
+    const dockerStateBadge = (container) => {
+      const state = String(container?.state || "").toLowerCase();
+      const status = String(container?.status || "").toLowerCase();
+
+      if (state === "created" || status.includes("created")) {
+        return { label: "Criado", cls: "st-info" };
+      }
+      if (state === "running" && status.includes("healthy")) {
+        return { label: "Saudavel", cls: "st-healthy" };
+      }
+      if (state === "running" || status.includes("running") || status.startsWith("up")) {
+        return { label: "Em execucao", cls: "st-run" };
+      }
+      if (state === "restarting" || status.includes("restarting")) {
+        return { label: "Reiniciando", cls: "st-info" };
+      }
+      if (state === "paused" || status.includes("paused")) {
+        return { label: "Pausado", cls: "st-info" };
+      }
+      return { label: "Parado", cls: "st-stop" };
+    };
+
+    const truncateText = (value, maxLen) => {
+      const text = String(value || "");
+      if (text.length <= maxLen) return text;
+      return text.slice(0, Math.max(0, maxLen - 1)) + "…";
+    };
+
+    const renderExpandableCell = (value, maxLen) => {
+      const full = String(value || "");
+      const short = truncateText(full, maxLen);
+      const fullEscaped = escapeHtml(full);
+      const shortEscaped = escapeHtml(short);
+      if (!full || short === full) {
+        return "<td>" + fullEscaped + "</td>";
+      }
+      return (
+        "<td class='collapsible-cell' onclick='this.classList.toggle(\"expanded\")' title='Clique para expandir/recolher'>" +
+          "<span class='short'>" + shortEscaped + "</span>" +
+          "<span class='full'>" + fullEscaped + "</span>" +
+        "</td>"
+      );
+    };
+
     const setRamChartMeta = (message) => {
       const el = document.getElementById("ramChartMeta");
       if (el) el.textContent = message;
@@ -971,6 +1060,23 @@
     const setTrafficMeta = (message) => {
       const el = document.getElementById("trafficMeta");
       if (el) el.textContent = message;
+    };
+
+    const setTrafficLegend = (apps) => {
+      const el = document.getElementById("trafficLegend");
+      if (!el) return;
+      const appList = Array.isArray(apps) ? apps : [];
+      const base = [
+        '<span class="legend-item"><span class="legend-dot" style="background:#5165d6;"></span>Geral</span>'
+      ];
+      appList.forEach((app, index) => {
+        const color = TRAFFIC_COLORS[index % TRAFFIC_COLORS.length];
+        base.push(
+          '<span class="legend-item"><span class="legend-dot" style="background:' + color + ';"></span>' +
+          escapeHtml(app) + "</span>"
+        );
+      });
+      el.innerHTML = base.join("");
     };
 
     const clampPercent = (value) => {
@@ -1091,24 +1197,36 @@
 
     const recordTrafficSample = (traffic) => {
       const apps = Array.isArray(traffic?.applications) ? traffic.applications : [];
-      const appMap = new Map(apps.map((a) => [String(a.app || ""), a]));
+      const selectedApps = apps
+        .slice()
+        .sort((a, b) =>
+          (Number(b?.rx_bps || 0) + Number(b?.tx_bps || 0)) -
+          (Number(a?.rx_bps || 0) + Number(a?.tx_bps || 0))
+        )
+        .slice(0, TRAFFIC_SERIES_LIMIT);
+      const appRates = {};
+      const appRx = {};
+      const appTx = {};
+      selectedApps.forEach((a) => {
+        const name = String(a?.app || "");
+        if (!name) return;
+        appRates[name] = Number(a?.rx_bps || 0) + Number(a?.tx_bps || 0);
+        appRx[name] = Number(a?.rx_bps || 0);
+        appTx[name] = Number(a?.tx_bps || 0);
+      });
       const generalRate = Number(traffic?.total?.rx_bps || 0) + Number(traffic?.total?.tx_bps || 0);
-      const chalana = appMap.get("chalana-api");
-      const portaleco = appMap.get("portaleco-vps-monitor");
-      const chalanaRate = Number(chalana?.rx_bps || 0) + Number(chalana?.tx_bps || 0);
-      const portalecoRate = Number(portaleco?.rx_bps || 0) + Number(portaleco?.tx_bps || 0);
+      const appKeys = Object.keys(appRates);
+      setTrafficLegend(appKeys);
 
       trafficHistory.push({
         t: Date.now(),
         generalRate,
-        chalanaRate,
-        portalecoRate,
         generalRx: Number(traffic?.total?.rx_bps || 0),
         generalTx: Number(traffic?.total?.tx_bps || 0),
-        chalanaRx: Number(chalana?.rx_bps || 0),
-        chalanaTx: Number(chalana?.tx_bps || 0),
-        portalecoRx: Number(portaleco?.rx_bps || 0),
-        portalecoTx: Number(portaleco?.tx_bps || 0)
+        appKeys,
+        appRates,
+        appRx,
+        appTx
       });
 
       while (trafficHistory.length > TRAFFIC_HISTORY_MAX_POINTS) {
@@ -1155,7 +1273,13 @@
 
       const maxValue = Math.max(
         1,
-        ...trafficHistory.map((p) => Math.max(p.generalRate, p.chalanaRate, p.portalecoRate))
+        ...trafficHistory.map((p) => {
+          const appMax = Math.max(
+            0,
+            ...((p.appKeys || []).map((name) => Number(p.appRates?.[name] || 0)))
+          );
+          return Math.max(Number(p.generalRate || 0), appMax);
+        })
       );
       const maxScale = maxValue * 1.15;
 
@@ -1176,10 +1300,16 @@
       };
 
       drawSeries("generalRate", "#5165d6");
-      drawSeries("chalanaRate", "#e38b2a");
-      drawSeries("portalecoRate", "#2d9a6b");
-
       const last = trafficHistory[trafficHistory.length - 1];
+      const keys = Array.isArray(last?.appKeys) ? last.appKeys : [];
+      keys.forEach((name, index) => {
+        const key = "__appRate_" + name;
+        trafficHistory.forEach((point) => {
+          point[key] = Number(point.appRates?.[name] || 0);
+        });
+        drawSeries(key, TRAFFIC_COLORS[index % TRAFFIC_COLORS.length]);
+      });
+
       const markLast = (v, color) => {
         const lx = toX(trafficHistory.length - 1);
         const ly = toY(v);
@@ -1189,8 +1319,9 @@
         ctx.fill();
       };
       markLast(last.generalRate, "#5165d6");
-      markLast(last.chalanaRate, "#e38b2a");
-      markLast(last.portalecoRate, "#2d9a6b");
+      keys.forEach((name, index) => {
+        markLast(Number(last.appRates?.[name] || 0), TRAFFIC_COLORS[index % TRAFFIC_COLORS.length]);
+      });
 
       ctx.fillStyle = "#3f5f85";
       ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
@@ -1199,11 +1330,15 @@
       const topWidth = ctx.measureText(topLabel).width;
       ctx.fillText(topLabel, width - pad.right - topWidth, height - 5);
 
-      setTrafficMeta(
-        "Geral: ↓" + fmtRate(last.generalRx) + " ↑" + fmtRate(last.generalTx) +
-        " | chalana-api: ↓" + fmtRate(last.chalanaRx) + " ↑" + fmtRate(last.chalanaTx) +
-        " | portaleco-vps-monitor: ↓" + fmtRate(last.portalecoRx) + " ↑" + fmtRate(last.portalecoTx)
-      );
+      const parts = [
+        "Geral: ↓" + fmtRate(last.generalRx) + " ↑" + fmtRate(last.generalTx)
+      ];
+      keys.forEach((name) => {
+        parts.push(
+          name + ": ↓" + fmtRate(last.appRx?.[name] || 0) + " ↑" + fmtRate(last.appTx?.[name] || 0)
+        );
+      });
+      setTrafficMeta(parts.join(" | "));
     };
 
     const startRamLivePolling = () => {
@@ -1370,40 +1505,37 @@
         document.getElementById("cpuSpec").textContent = String(system.cpu_cores || 4);
         document.getElementById("ramSpec").textContent =
           `${fmtNum(toGb(system.memory?.total))} GB / ${fmtNum(toMb(system.memory?.used))} MB`;
+        const diskVolumes = Array.isArray(system.disk?.volumes) ? system.disk.volumes : [];
         document.getElementById("diskSpec").textContent =
-          `${fmtNum(toGb(system.disk?.total))} GB / ${fmtNum(toGb(system.disk?.used))} GB`;
+          `${fmtNum(toGb(system.disk?.total))} GB / ${fmtNum(toGb(system.disk?.used))} GB` +
+          (diskVolumes.length > 1 ? ` (${diskVolumes.length} discos)` : "");
+
+        const diskDetails = diskVolumes.length > 0
+          ? " | Volumes: " + diskVolumes
+            .map((d) => `${d.mount} ${fmtNum(toGb(d.used))}/${fmtNum(toGb(d.total))} GB (${Number(d.percent || 0).toFixed(0)}%)`)
+            .join(" | ")
+          : "";
 
         document.getElementById("sysMeta").textContent =
           "Host: " + (system.hostname || "-") +
           " | RAM: " + fmtBytes(system.memory?.used) + " / " + fmtBytes(system.memory?.total) +
-          " | Disco: " + fmtBytes(system.disk?.used) + " / " + fmtBytes(system.disk?.total);
+          " | Disco: " + fmtBytes(system.disk?.used) + " / " + fmtBytes(system.disk?.total) +
+          diskDetails;
         const startedAt = new Date(Date.now() - (Number(system.uptime_seconds || 0) * 1000));
         document.getElementById("sysUptime").textContent =
           "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds) +
           " | Iniciado em: " + fmtDateTime(startedAt);
         recordRamSample(system);
 
+        const dynamicServices = Array.isArray(services.items)
+          ? services.items.map((item) => ({
+            name: String(item?.name || ""),
+            online: Boolean(item?.online),
+            detail: String(item?.detail || "")
+          }))
+          : [];
         const serviceCards = [
-          {
-            name: "chalana-api",
-            online: Boolean(services.services && services.services["chalana-api"]),
-            detail: "API principal"
-          },
-          {
-            name: "firebird25",
-            online: Boolean(services.services && services.services["firebird25"]),
-            detail: "Banco Firebird"
-          },
-          {
-            name: "nginx-proxy-manager",
-            online: Boolean(services.services && services.services["nginx-proxy-manager"]),
-            detail: "Proxy reverso"
-          },
-          {
-            name: "cloudflared",
-            online: Boolean(services.services && services.services["cloudflared"]),
-            detail: "Tunnel Cloudflare"
-          },
+          ...dynamicServices,
           {
             name: "tunnel",
             online: Boolean(tunnel.running),
@@ -1417,10 +1549,12 @@
         ];
         const servicesEl = document.getElementById("services");
         servicesEl.innerHTML = serviceCards.map((item) => {
+          const safeName = escapeHtml(item.name);
+          const safeDetail = escapeHtml(item.detail);
           return '<div class="service-item">' +
             '<div class="service-info">' +
-              '<strong>' + item.name + '</strong>' +
-              '<div class="service-detail">' + item.detail + '</div>' +
+              '<strong>' + safeName + '</strong>' +
+              '<div class="service-detail">' + safeDetail + '</div>' +
             '</div>' +
             '<span>' + dot(item.online) + '</span>' +
           '</div>';
@@ -1429,19 +1563,22 @@
         recordTrafficSample(traffic);
 
         document.getElementById("dockerMeta").textContent =
-          "Total: " + (docker.total || 0) + " | Running: " + (docker.running || 0);
+          "Total: " + (docker.total || 0) + " | Em execucao: " + (docker.running || 0);
 
-        const rows = (docker.containers || []).map((c) =>
+        const rows = (docker.containers || []).map((c) => {
+          const badge = dockerStateBadge(c);
+          const safeName = escapeHtml(c.name || "");
+          const safeNetwork = escapeHtml(c.network || "");
+          return (
           "<tr>" +
-            "<td>" + (c.name || "") + "</td>" +
-            "<td>" + (c.running
-              ? "<span class='st st-run'>Iniciado</span>"
-              : "<span class='st st-stop'>Parado</span>") + "</td>" +
-            "<td>" + (c.image || "") + "</td>" +
-            "<td>" + (c.ports || "") + "</td>" +
-            "<td>" + (c.network || "") + "</td>" +
+            "<td>" + safeName + "</td>" +
+            "<td><span class='st " + badge.cls + "'>" + badge.label + "</span></td>" +
+            renderExpandableCell(c.image || "", 42) +
+            renderExpandableCell(c.ports || "", 28) +
+            "<td>" + safeNetwork + "</td>" +
           "</tr>"
-        ).join("");
+          );
+        }).join("");
 
         document.getElementById("dockerRows").innerHTML =
           rows || "<tr><td colspan='5'>Sem dados</td></tr>";
@@ -1480,12 +1617,16 @@
         document.getElementById("usersMeta").textContent = "Total: " + users.length;
         document.getElementById("usersRows").innerHTML = users.map((u) => {
           const actionLabel = u.active ? "Desativar" : "Ativar";
+          const safeUsername = escapeHtml(u.username || "-");
+          const safeRole = escapeHtml(u.role || "-");
+          const safeUpdatedAt = escapeHtml(u.updated_at || "-");
+          const safeUsernameAttr = escapeHtml(u.username || "");
           return "<tr>" +
-            "<td>" + (u.username || "-") + "</td>" +
-            "<td>" + (u.role || "-") + "</td>" +
+            "<td>" + safeUsername + "</td>" +
+            "<td>" + safeRole + "</td>" +
             "<td>" + (u.active ? "<span class='st st-run'>Ativo</span>" : "<span class='st st-stop'>Inativo</span>") + "</td>" +
-            "<td>" + (u.updated_at || "-") + "</td>" +
-            "<td><button class='mini-btn' data-user-toggle='" + (u.username || "") + "' data-user-active='" + (u.active ? "1" : "0") + "'>" + actionLabel + "</button></td>" +
+            "<td>" + safeUpdatedAt + "</td>" +
+            "<td><button class='mini-btn' data-user-toggle='" + safeUsernameAttr + "' data-user-active='" + (u.active ? "1" : "0") + "'>" + actionLabel + "</button></td>" +
           "</tr>";
         }).join("") || "<tr><td colspan='5'>Sem usuários</td></tr>";
       } catch (error) {
