@@ -3,6 +3,18 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "git:auto": "bash ./scripts/git_auto.sh"
+    "git:auto": "bash ./scripts/git_auto.sh",
+    "preflight:prod": "bash ./scripts/release_preflight.sh prod",
+    "preflight:staging": "bash ./scripts/release_preflight.sh staging",
+    "preflight:both": "bash ./scripts/release_preflight.sh both",
+    "gate:prod": "bash ./scripts/release_gate.sh prod",
+    "gate:staging": "bash ./scripts/release_gate.sh staging",
+    "security:prod": "bash ./scripts/security_check.sh prod",
+    "security:staging": "bash ./scripts/security_check.sh staging",
+    "host:surface": "bash ./scripts/host_surface_check.sh",
+    "precheck:prod": "bash ./scripts/deploy_precheck.sh prod",
+    "precheck:staging": "bash ./scripts/deploy_precheck.sh staging",
+    "smoke:prod": "bash ./scripts/release_smoke.sh prod",
+    "smoke:staging": "bash ./scripts/release_smoke.sh staging"
   }
 }

@@ -276,6 +276,30 @@ Opcoes uteis:
 - `RELEASE_GATE_STRICT_ADMIN_SURFACE=true` para ativar falha em superficie admin publica
 - `RELEASE_GATE_STRICT_HOST_SURFACE=true` para ativar falha em portas admin publicas no host
 
+## Atalhos npm (operacao)
+
+No diretorio raiz do projeto:
+
+```bash
+npm run preflight:prod
+npm run preflight:staging
+npm run preflight:both
+
+npm run gate:prod
+npm run gate:staging
+
+npm run precheck:prod
+npm run precheck:staging
+
+npm run smoke:prod
+npm run smoke:staging
+
+npm run security:prod
+npm run security:staging
+
+npm run host:surface
+```
+
 ## Rotacao de credenciais auth
 
 Script: `./scripts/rotate_auth_secrets.sh [prod|staging|both] [--apply]`
