@@ -83,4 +83,11 @@ else
   echo "Smoke pos-deploy ignorado (RUN_RELEASE_SMOKE=${RUN_RELEASE_SMOKE:-true})."
 fi
 
+if [ "${RUN_POST_DEPLOY_PREFLIGHT:-true}" = "true" ] && [ -x "../scripts/release_preflight.sh" ]; then
+  echo "Executando preflight pos-deploy (${ENVIRONMENT})..."
+  ../scripts/release_preflight.sh "$ENVIRONMENT"
+else
+  echo "Preflight pos-deploy ignorado (RUN_POST_DEPLOY_PREFLIGHT=${RUN_POST_DEPLOY_PREFLIGHT:-true})."
+fi
+
 echo "Deploy finalizado com sucesso!"

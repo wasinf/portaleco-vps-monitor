@@ -90,6 +90,12 @@ Para ignorar smoke pos-deploy (apenas em emergencia):
 RUN_RELEASE_SMOKE=false ./deploy.sh prod
 ```
 
+Para ignorar preflight pos-deploy (apenas em emergencia):
+
+```bash
+RUN_POST_DEPLOY_PREFLIGHT=false ./deploy.sh prod
+```
+
 ## Endpoints de autenticação
 
 - `POST /api/auth/login`
