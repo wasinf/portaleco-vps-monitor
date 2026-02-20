@@ -94,3 +94,54 @@ Backend gera logs estruturados em JSON por requisicao com:
 - IP de origem e usuario autenticado (quando existir)
 
 Para silenciar logs HTTP: `LOG_LEVEL=silent`.
+
+## Backup de autenticacao
+
+Scripts adicionados em `scripts/` para backup/restore dos volumes SQLite de auth:
+
+- `./scripts/backup_create.sh`
+- `./scripts/backup_restore.sh [prod|staging] /caminho/auth-<env>-<timestamp>.tgz`
+
+Detalhes:
+
+- backups sao salvos em `backups/` (ou `BACKUP_DIR` customizado)
+- hash `sha256` e gerado por arquivo
+- limpeza automatica por retencao com `RETENTION_DAYS` (padrao: 14)
+
+Exemplo:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/backup_create.sh
+```
+
+## Healthcheck com alerta opcional
+
+Script: `./scripts/health_alert_check.sh`
+
+Ele valida `running/healthy` para:
+
+- `portaleco-vps-monitor-backend`
+- `portaleco-vps-monitor-frontend`
+- `portaleco-vps-monitor-backend-staging`
+- `portaleco-vps-monitor-frontend-staging`
+
+Se houver falha, retorna `exit 1` e opcionalmente envia webhook via:
+
+- `ALERT_WEBHOOK_URL`
+
+Exemplo:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+ALERT_WEBHOOK_URL="https://seu-webhook" ./scripts/health_alert_check.sh
+```
+
+## Crontab recomendado
+
+Exemplo simples (backup diario + healthcheck a cada 5 min):
+
+```cron
+0 2 * * * cd /opt/apps/portaleco-vps-monitor && ./scripts/backup_create.sh >/var/log/portaleco-backup.log 2>&1
+*/5 * * * * cd /opt/apps/portaleco-vps-monitor && ./scripts/health_alert_check.sh >/var/log/portaleco-health.log 2>&1
+```
