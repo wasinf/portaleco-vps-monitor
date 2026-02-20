@@ -7,10 +7,10 @@ ENVIRONMENT="${1:-prod}"
 
 if [ "$ENVIRONMENT" = "prod" ]; then
   ENV_FILE="$INFRA_DIR/.env"
-  LOCAL_FRONTEND_URL="${LOCAL_FRONTEND_URL:-http://127.0.0.1:4001/}"
+  FRONTEND_CONTAINER="portaleco-vps-monitor-frontend"
 elif [ "$ENVIRONMENT" = "staging" ]; then
   ENV_FILE="$INFRA_DIR/.env.staging"
-  LOCAL_FRONTEND_URL="${LOCAL_FRONTEND_URL:-http://127.0.0.1:4101/}"
+  FRONTEND_CONTAINER="portaleco-vps-monitor-frontend-staging"
 else
   echo "Uso: $0 [prod|staging]"
   exit 1
@@ -50,6 +50,21 @@ check_headers() {
   echo "$headers" | grep -qi '^referrer-policy:' && ok "${label}: Referrer-Policy presente" || warn "${label}: Referrer-Policy ausente"
 }
 
+check_local_container_headers() {
+  local container="$1"
+  local headers
+
+  if ! headers="$(docker exec "$container" sh -lc "wget -S -O - http://127.0.0.1/ 2>&1 >/dev/null" 2>/dev/null)"; then
+    warn "frontend local: indisponivel no container ${container}"
+    return
+  fi
+
+  echo "$headers" | grep -qi 'Strict-Transport-Security:' && ok "frontend local: HSTS presente" || warn "frontend local: HSTS ausente"
+  echo "$headers" | grep -qi 'Content-Security-Policy:' && ok "frontend local: CSP presente" || warn "frontend local: CSP ausente"
+  echo "$headers" | grep -qi 'X-Content-Type-Options:[[:space:]]*nosniff' && ok "frontend local: X-Content-Type-Options=nosniff" || warn "frontend local: X-Content-Type-Options ausente/invalido"
+  echo "$headers" | grep -qi 'Referrer-Policy:' && ok "frontend local: Referrer-Policy presente" || warn "frontend local: Referrer-Policy ausente"
+}
+
 check_public_ports() {
   local exposed
   exposed="$(docker ps --format '{{.Names}}\t{{.Ports}}' | grep -E '0\.0\.0\.0:' || true)"
@@ -80,7 +95,7 @@ check_public_ports() {
 
 echo "== Security check (${ENVIRONMENT}) =="
 
-check_headers "$LOCAL_FRONTEND_URL" "frontend local"
+check_local_container_headers "$FRONTEND_CONTAINER"
 
 if [ -f "$ENV_FILE" ]; then
   origin="$(first_origin "$(env_get "$ENV_FILE" "ALLOWED_ORIGINS")")"

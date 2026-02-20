@@ -205,6 +205,15 @@ cd /opt/apps/portaleco-vps-monitor
 ./scripts/security_check.sh staging
 ```
 
+## Headers de seguranca no frontend
+
+O frontend (Nginx) aplica headers HTTP de seguranca por padrao:
+
+- `Strict-Transport-Security`
+- `Content-Security-Policy`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy`
+
 ## Precheck de deploy
 
 Script: `./scripts/deploy_precheck.sh [prod|staging]`
