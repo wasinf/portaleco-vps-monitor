@@ -76,4 +76,11 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
+if [ "${RUN_RELEASE_SMOKE:-true}" = "true" ] && [ -x "../scripts/release_smoke.sh" ]; then
+  echo "Executando smoke pos-deploy (${ENVIRONMENT})..."
+  ../scripts/release_smoke.sh "$ENVIRONMENT"
+else
+  echo "Smoke pos-deploy ignorado (RUN_RELEASE_SMOKE=${RUN_RELEASE_SMOKE:-true})."
+fi
+
 echo "Deploy finalizado com sucesso!"

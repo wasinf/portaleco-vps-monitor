@@ -71,8 +71,9 @@ Script em `deploy.sh` com suporte a:
 
 O script faz smoke test automatico apos subir:
 
-- API: `GET /health`
-- Frontend: `GET /`
+- loopback dentro do container backend: `GET /health`
+- loopback dentro do container frontend: `GET /`
+- smoke publico opcional (dominio de `ALLOWED_ORIGINS` ou `RELEASE_SMOKE_ORIGIN`)
 - Precheck de ambiente (`scripts/deploy_precheck.sh`)
 
 Se algum teste falhar, o deploy termina com erro.
@@ -81,6 +82,12 @@ Para ignorar o precheck (apenas em emergencia):
 
 ```bash
 RUN_DEPLOY_PRECHECK=false ./deploy.sh prod
+```
+
+Para ignorar smoke pos-deploy (apenas em emergencia):
+
+```bash
+RUN_RELEASE_SMOKE=false ./deploy.sh prod
 ```
 
 ## Endpoints de autenticação
