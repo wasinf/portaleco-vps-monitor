@@ -180,6 +180,7 @@ Valida automaticamente:
 - presenca das entradas de cron esperadas
 - existencia de backup recente em `backups/`
 - check de seguranca HTTP/rede via `scripts/security_check.sh` (prod e staging)
+- check de superficie de portas no host via `scripts/host_surface_check.sh`
 
 Exemplo:
 
@@ -210,6 +211,22 @@ Modo estrito opcional (falha quando detectar superficie admin publica):
 
 ```bash
 SECURITY_STRICT_ADMIN_SURFACE=true ./scripts/security_check.sh prod
+```
+
+## Host surface check
+
+Script: `./scripts/host_surface_check.sh`
+
+Valida portas publicas escutando no host (0.0.0.0 / ::):
+
+- permitidas por padrao: `22,80,443`
+- observacao por padrao: `25,81`
+- administrativas monitoradas: `8088,9000,9443`
+
+Modo estrito opcional:
+
+```bash
+HOST_SURFACE_STRICT_ADMIN=true ./scripts/host_surface_check.sh
 ```
 
 ## Headers de seguranca no frontend

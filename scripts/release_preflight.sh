@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INFRA_DIR="$ROOT_DIR/infra"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
 MAX_BACKUP_AGE_HOURS="${MAX_BACKUP_AGE_HOURS:-48}"
+HOST_SURFACE_STRICT_ADMIN="${HOST_SURFACE_STRICT_ADMIN:-false}"
 
 errors=0
 warnings=0
@@ -120,6 +121,18 @@ check_security() {
   fi
 }
 
+check_host_surface() {
+  if [ -x "$ROOT_DIR/scripts/host_surface_check.sh" ]; then
+    if HOST_SURFACE_STRICT_ADMIN="$HOST_SURFACE_STRICT_ADMIN" "$ROOT_DIR/scripts/host_surface_check.sh"; then
+      ok "host_surface_check: concluido"
+    else
+      fail "host_surface_check: falhou"
+    fi
+  else
+    warn "host_surface_check.sh ausente/sem permissao de execucao"
+  fi
+}
+
 echo "== Preflight portaleco-vps-monitor =="
 
 check_env_file "$INFRA_DIR/.env" "prod"
@@ -135,6 +148,7 @@ check_cron_entry "./scripts/health_alert_check.sh" "health_alert_check"
 
 check_recent_backup
 check_security
+check_host_surface
 
 echo "== Resultado =="
 echo "Erros: $errors"
