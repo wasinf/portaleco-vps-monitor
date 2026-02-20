@@ -186,6 +186,23 @@ Valida por ambiente:
 - `AUTH_TOKEN_SECRET` e `AUTH_PASSWORD` fora de default e com tamanho minimo
 - `docker compose config` valido
 
+## Rotacao de credenciais auth
+
+Script: `./scripts/rotate_auth_secrets.sh [prod|staging|both] [--apply]`
+
+Comportamento:
+
+- sem `--apply`: apenas `dry-run` (gera valores e mostra mascarado)
+- com `--apply`: atualiza `.env`, faz deploy do ambiente e aplica troca efetiva de senha via API
+
+Exemplos:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/rotate_auth_secrets.sh both
+./scripts/rotate_auth_secrets.sh prod --apply
+```
+
 ## Padrao de commit PT-BR
 
 Template de commit disponivel em:
