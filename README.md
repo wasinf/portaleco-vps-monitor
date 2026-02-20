@@ -148,3 +148,21 @@ Exemplo simples (backup diario + healthcheck a cada 5 min):
 0 2 * * * cd /opt/apps/portaleco-vps-monitor && ./scripts/backup_create.sh >/var/log/portaleco-backup.log 2>&1
 */5 * * * * cd /opt/apps/portaleco-vps-monitor && ./scripts/health_alert_check.sh >/var/log/portaleco-health.log 2>&1
 ```
+
+## Preflight de release
+
+Script: `./scripts/release_preflight.sh`
+
+Valida automaticamente:
+
+- variaveis criticas em `infra/.env` e `infra/.env.staging`
+- containers `running/healthy` em prod e staging
+- presenca das entradas de cron esperadas
+- existencia de backup recente em `backups/`
+
+Exemplo:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/release_preflight.sh
+```
