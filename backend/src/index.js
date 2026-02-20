@@ -15,6 +15,10 @@ const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "change-me";
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || "change-this-token-secret";
 const AUTH_TOKEN_TTL_SECONDS = Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 12);
 const AUTH_DB_PATH = process.env.AUTH_DB_PATH || "/data/auth.db";
+const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "portaleco_vps_monitor_auth";
+const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE || "Lax";
+const AUTH_COOKIE_PATH = process.env.AUTH_COOKIE_PATH || "/";
+const AUTH_COOKIE_SECURE = String(process.env.AUTH_COOKIE_SECURE || "true").toLowerCase() !== "false";
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
 const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
   .split(",")
@@ -58,7 +62,7 @@ const corsOptions = {
     if (ALLOWED_ORIGINS.length === 0) return callback(null, false);
     return callback(null, ALLOWED_ORIGINS.includes(origin));
   },
-  credentials: false
+  credentials: true
 };
 
 app.use(cors(corsOptions));
@@ -160,11 +164,44 @@ const getBearerToken = (req) => {
   return match ? match[1] : "";
 };
 
+const getCookieToken = (req) => {
+  const rawCookie = String(req.headers.cookie || "");
+  if (!rawCookie) return "";
+  const cookieParts = rawCookie.split(";");
+  for (const part of cookieParts) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name !== AUTH_COOKIE_NAME) continue;
+    const value = rest.join("=");
+    if (!value) return "";
+    try {
+      return decodeURIComponent(value);
+    } catch (_) {
+      return value;
+    }
+  }
+  return "";
+};
+
+const buildAuthCookie = (token, maxAgeSeconds) => {
+  const attrs = [
+    `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    `Max-Age=${Math.max(0, Number(maxAgeSeconds) || 0)}`,
+    `Path=${AUTH_COOKIE_PATH}`,
+    "HttpOnly",
+    `SameSite=${AUTH_COOKIE_SAMESITE}`
+  ];
+  if (AUTH_COOKIE_SECURE) attrs.push("Secure");
+  return attrs.join("; ");
+};
+
+const clearAuthCookie = () => buildAuthCookie("", 0);
+
 const apiAuthMiddleware = (req, res, next) => {
   if (!AUTH_ENABLED) return next();
   if (req.path === "/auth/login") return next();
+  if (req.path === "/auth/logout") return next();
 
-  const token = getBearerToken(req);
+  const token = getBearerToken(req) || getCookieToken(req);
   if (!token) {
     return res.status(401).json({
       status: "error",
@@ -424,6 +461,7 @@ app.post("/api/auth/login", (req, res) => {
   }
 
   const token = signAuthToken(user);
+  res.setHeader("Set-Cookie", buildAuthCookie(token, Math.max(60, Number(AUTH_TOKEN_TTL_SECONDS) || 0)));
   return res.json({
     status: "ok",
     token,
@@ -431,6 +469,11 @@ app.post("/api/auth/login", (req, res) => {
     expires_in: Math.max(60, Number(AUTH_TOKEN_TTL_SECONDS) || 0),
     user: { username: user.username, role: user.role }
   });
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  res.setHeader("Set-Cookie", clearAuthCookie());
+  return res.json({ status: "ok" });
 });
 
 app.use("/api", apiAuthMiddleware);

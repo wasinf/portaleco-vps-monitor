@@ -934,9 +934,6 @@
   </section>
 
   <script>
-    const TOKEN_KEY = "portaleco_vps_monitor_token";
-    const USER_KEY = "portaleco_vps_monitor_user";
-    const USER_ROLE_KEY = "portaleco_vps_monitor_role";
     const API_TIMEOUT_MS = 10000;
     const RAM_POLL_MS = 3000;
     const RAM_HISTORY_MAX_POINTS = 80;
@@ -945,6 +942,8 @@
     const TRAFFIC_COLORS = ["#e38b2a", "#2d9a6b", "#9b59b6", "#27a3a3", "#c95d2e", "#5b6fd9"];
     let pollHandle = null;
     let ramPollHandle = null;
+    let currentUser = "";
+    let currentRole = "";
     let lastApiOkAt = null;
     let lastApiErrorAt = null;
     let lastApiErrorMessage = "";
@@ -1355,21 +1354,14 @@
       }, RAM_POLL_MS);
     };
 
-    const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
-    const getUser = () => localStorage.getItem(USER_KEY) || "";
-    const getRole = () => localStorage.getItem(USER_ROLE_KEY) || "";
+    const getUser = () => currentUser || "";
+    const getRole = () => currentRole || "";
     const isAdmin = () => getRole() === "admin";
     const usersModalEl = document.getElementById("usersModal");
 
-    const setSession = (token, username, role) => {
-      if (token) localStorage.setItem(TOKEN_KEY, token);
-      else localStorage.removeItem(TOKEN_KEY);
-
-      if (username) localStorage.setItem(USER_KEY, username);
-      else localStorage.removeItem(USER_KEY);
-
-      if (role) localStorage.setItem(USER_ROLE_KEY, role);
-      else localStorage.removeItem(USER_ROLE_KEY);
+    const setSession = (username, role) => {
+      currentUser = String(username || "");
+      currentRole = String(role || "");
     };
 
     const setLoginMessage = (message, isError = false) => {
@@ -1435,11 +1427,7 @@
     };
 
     async function apiFetch(path, options = {}) {
-      const token = getToken();
       const headers = new Headers(options.headers || {});
-      if (token) {
-        headers.set("Authorization", "Bearer " + token);
-      }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -1448,6 +1436,7 @@
         response = await fetch(path, {
           ...options,
           headers,
+          credentials: "include",
           cache: "no-store",
           signal: options.signal || controller.signal
         });
@@ -1593,7 +1582,7 @@
         }
       } catch (e) {
         if (e.authError) {
-          setSession("", "", "");
+          setSession("", "");
           showLoginView(e.message, true);
           return;
         }
@@ -1646,6 +1635,7 @@
         const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           cache: "no-store",
           body: JSON.stringify({ username, password })
         });
@@ -1656,17 +1646,13 @@
         }
 
         if (data.auth_enabled === false) {
-          setSession("", username || "local", "admin");
+          setSession(data.user?.username || username || "local", data.user?.role || "admin");
           showDashboardView();
           await load();
           return;
         }
 
-        if (!data.token) {
-          throw new Error("Token não recebido no login.");
-        }
-
-        setSession(data.token, data.user?.username || username, data.user?.role || "viewer");
+        setSession(data.user?.username || username, data.user?.role || "viewer");
         showDashboardView();
         await load();
       } catch (error) {
@@ -1676,8 +1662,17 @@
       }
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      setSession("", "", "");
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store"
+        });
+      } catch (_) {
+        // ignora falha de rede no logout e limpa sessao local mesmo assim
+      }
+      setSession("", "");
       showLoginView("Sessão encerrada.");
     });
 
@@ -1800,22 +1795,17 @@
     });
 
     async function bootstrapSession() {
-      if (!getToken()) {
-        showLoginView("Informe suas credenciais para continuar.");
-        return;
-      }
-
       try {
         const response = await apiFetch("/api/auth/me");
         const data = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Sessão inválida");
         }
-        setSession(getToken(), data.user?.username || getUser(), data.user?.role || getRole() || "viewer");
+        setSession(data.user?.username || "", data.user?.role || "viewer");
         showDashboardView();
         await load();
       } catch (_) {
-        setSession("", "", "");
+        setSession("", "");
         showLoginView("Sessão expirada. Faça login novamente.", true);
       }
     }
