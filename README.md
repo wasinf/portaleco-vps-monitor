@@ -305,9 +305,16 @@ npm run security:staging
 
 npm run host:surface
 npm run status:ops
+npm run status:ops:strict
 ```
 
 `status:ops` mostra rapidamente: estado do Git, saude dos containers, HTTP de prod/staging, cron e backup mais recente.
+
+Opcoes do `status:ops`:
+
+- `OPS_STATUS_STRICT=true`: retorna `exit 1` se houver erro critico
+- `OPS_STATUS_FAIL_ON_WARN=true`: retorna `exit 1` tambem para avisos
+- `BACKUP_MAX_AGE_HOURS=48`: limite de idade para backup recente
 
 ## Rotacao de credenciais auth
 
