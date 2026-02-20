@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ALERT_ENV_FILE="${ALERT_ENV_FILE:-$ROOT_DIR/infra/.health-alert.env}"
+if [ -f "$ALERT_ENV_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$ALERT_ENV_FILE"
+fi
+
 PROD_BACKEND="portaleco-vps-monitor-backend"
 PROD_FRONTEND="portaleco-vps-monitor-frontend"
 STG_BACKEND="portaleco-vps-monitor-backend-staging"

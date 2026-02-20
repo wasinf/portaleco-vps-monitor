@@ -129,12 +129,15 @@ Ele valida `running/healthy` para:
 Se houver falha, retorna `exit 1` e opcionalmente envia webhook via:
 
 - `ALERT_WEBHOOK_URL`
+- arquivo local `infra/.health-alert.env` (nao versionado)
 
 Exemplo:
 
 ```bash
 cd /opt/apps/portaleco-vps-monitor
-ALERT_WEBHOOK_URL="https://seu-webhook" ./scripts/health_alert_check.sh
+cp infra/.health-alert.env.example infra/.health-alert.env
+# editar ALERT_WEBHOOK_URL no arquivo
+./scripts/health_alert_check.sh
 ```
 
 ## Crontab recomendado
