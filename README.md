@@ -196,6 +196,7 @@ Valida:
 
 - headers de seguranca (HSTS, CSP, nosniff, Referrer-Policy)
 - exposicao de portas publicas (`0.0.0.0`) com allowlist de servicos esperados
+- deteccao de superficie administrativa publica (`8088`, `9000`, `9443`, `81`)
 
 Exemplos:
 
@@ -203,6 +204,12 @@ Exemplos:
 cd /opt/apps/portaleco-vps-monitor
 ./scripts/security_check.sh prod
 ./scripts/security_check.sh staging
+```
+
+Modo estrito opcional (falha quando detectar superficie admin publica):
+
+```bash
+SECURITY_STRICT_ADMIN_SURFACE=true ./scripts/security_check.sh prod
 ```
 
 ## Headers de seguranca no frontend

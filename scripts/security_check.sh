@@ -18,6 +18,7 @@ fi
 
 errors=0
 warnings=0
+STRICT_ADMIN_SURFACE="${SECURITY_STRICT_ADMIN_SURFACE:-false}"
 
 ok() { echo "OK: $*"; }
 warn() { echo "WARN: $*"; warnings=$((warnings + 1)); }
@@ -77,6 +78,18 @@ check_public_ports() {
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     name="$(printf '%s' "$line" | awk '{print $1}')"
+    ports="$(printf '%s' "$line" | cut -f2-)"
+
+    if printf '%s' "$ports" | grep -Eq '0\.0\.0\.0:(8088|9000|9443|81)->'; then
+      if [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
+        fail "superficie admin publica bloqueada (modo estrito): $line"
+        flagged=1
+      else
+        warn "superficie admin publica detectada: $line"
+      fi
+      continue
+    fi
+
     case "$name" in
       nginx-proxy-manager|cloudflared-portal-eco|portaleco-panel|portainer)
         warn "bind publico permitido/revisar: $line"
@@ -94,6 +107,7 @@ check_public_ports() {
 }
 
 echo "== Security check (${ENVIRONMENT}) =="
+echo "Modo estrito superficie admin: ${STRICT_ADMIN_SURFACE}"
 
 check_local_container_headers "$FRONTEND_CONTAINER"
 
