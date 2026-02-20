@@ -166,3 +166,18 @@ Exemplo:
 cd /opt/apps/portaleco-vps-monitor
 ./scripts/release_preflight.sh
 ```
+
+## Padrao de commit PT-BR
+
+Template de commit disponivel em:
+
+- `.gitmessage-ptbr.txt`
+
+Aplicar no repositorio local:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/git_setup_ptbr.sh
+```
+
+Depois disso, ao usar `git commit` sem `-m`, o editor abre com o template PT-BR.

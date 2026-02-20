@@ -1,0 +1,23 @@
+# Formato:
+# tipo(modulo): descricao objetiva em pt-BR
+#
+# Tipos recomendados:
+# - feat
+# - fix
+# - chore
+# - docs
+# - refactor
+# - perf
+# - test
+#
+# Exemplos:
+# feat(seguranca): adicionar validacao preflight de release
+# fix(deploy): corrigir validacao de saude no script
+# docs(readme): documentar rotinas de backup e healthcheck
+
+tipo(modulo): descricao objetiva
+
+# Contexto:
+# - O que mudou?
+# - Qual risco foi mitigado?
+# - Houve impacto operacional?
