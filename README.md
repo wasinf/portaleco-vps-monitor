@@ -304,7 +304,10 @@ npm run security:prod
 npm run security:staging
 
 npm run host:surface
+npm run status:ops
 ```
+
+`status:ops` mostra rapidamente: estado do Git, saude dos containers, HTTP de prod/staging, cron e backup mais recente.
 
 ## Rotacao de credenciais auth
 

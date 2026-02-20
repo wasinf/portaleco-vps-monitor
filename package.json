@@ -12,6 +12,7 @@
     "security:prod": "bash ./scripts/security_check.sh prod",
     "security:staging": "bash ./scripts/security_check.sh staging",
     "host:surface": "bash ./scripts/host_surface_check.sh",
+    "status:ops": "bash ./scripts/ops_status.sh",
     "precheck:prod": "bash ./scripts/deploy_precheck.sh prod",
     "precheck:staging": "bash ./scripts/deploy_precheck.sh staging",
     "smoke:prod": "bash ./scripts/release_smoke.sh prod",
