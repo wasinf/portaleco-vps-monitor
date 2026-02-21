@@ -157,6 +157,10 @@ Tambem pode validar autenticacao:
 - probe real de login/sessao em `prod`
 - probe de `staging` (por padrao em soft-fail para evitar falso negativo por DNS externo)
 
+Tambem pode validar uso de disco:
+
+- `scripts/disk_guard_check.sh` com limites configuraveis
+
 Se houver falha, retorna `exit 1` e opcionalmente envia webhook via:
 
 - `ALERT_WEBHOOK_URL`
@@ -165,6 +169,10 @@ Se houver falha, retorna `exit 1` e opcionalmente envia webhook via:
   - `HEALTH_CHECK_AUTH_PROBE`
   - `HEALTH_CHECK_AUTH_PROBE_STAGING`
   - `HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL`
+  - `HEALTH_CHECK_DISK_GUARD`
+  - `DISK_WARN_THRESHOLD`
+  - `DISK_FAIL_THRESHOLD`
+  - `DISK_PATHS`
 
 Exemplo:
 
@@ -313,6 +321,7 @@ npm run smoke:staging
 npm run security:prod
 npm run security:staging
 
+npm run disk:guard
 npm run host:surface
 npm run log:maintain
 npm run incident:snapshot

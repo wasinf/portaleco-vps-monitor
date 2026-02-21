@@ -16,6 +16,7 @@ ALERT_WEBHOOK_URL="${ALERT_WEBHOOK_URL:-}"
 HEALTH_CHECK_AUTH_PROBE="${HEALTH_CHECK_AUTH_PROBE:-true}"
 HEALTH_CHECK_AUTH_PROBE_STAGING="${HEALTH_CHECK_AUTH_PROBE_STAGING:-true}"
 HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL="${HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL:-true}"
+HEALTH_CHECK_DISK_GUARD="${HEALTH_CHECK_DISK_GUARD:-true}"
 
 failures=0
 report_lines=()
@@ -60,6 +61,16 @@ if [ "$HEALTH_CHECK_AUTH_PROBE_STAGING" = "true" ]; then
     failures=$((failures + 1))
   fi
   rm -f /tmp/health_auth_stg.out 2>/dev/null || true
+fi
+
+if [ "$HEALTH_CHECK_DISK_GUARD" = "true" ]; then
+  if "$ROOT_DIR/scripts/disk_guard_check.sh" >/tmp/health_disk_guard.out 2>&1; then
+    report_lines+=("OK disk-guard: uso de disco dentro dos limites")
+  else
+    report_lines+=("FAIL disk-guard: $(tail -n 1 /tmp/health_disk_guard.out 2>/dev/null || echo 'erro no disk guard')")
+    failures=$((failures + 1))
+  fi
+  rm -f /tmp/health_disk_guard.out 2>/dev/null || true
 fi
 
 echo "Health check summary:"

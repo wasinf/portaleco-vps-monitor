@@ -11,6 +11,7 @@
     "gate:staging": "bash ./scripts/release_gate.sh staging",
     "security:prod": "bash ./scripts/security_check.sh prod",
     "security:staging": "bash ./scripts/security_check.sh staging",
+    "disk:guard": "bash ./scripts/disk_guard_check.sh",
     "host:surface": "bash ./scripts/host_surface_check.sh",
     "log:maintain": "bash ./scripts/log_maintain.sh",
     "incident:snapshot": "bash ./scripts/incident_snapshot.sh",
