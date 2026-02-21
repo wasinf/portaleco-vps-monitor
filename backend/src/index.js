@@ -20,6 +20,7 @@ const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE || "Lax";
 const AUTH_COOKIE_PATH = process.env.AUTH_COOKIE_PATH || "/";
 const AUTH_COOKIE_SECURE = String(process.env.AUTH_COOKIE_SECURE || "true").toLowerCase() !== "false";
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
+const HOST_FS_ROOT = (process.env.HOST_FS_ROOT || "/hostfs").replace(/\/+$/, "");
 const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((value) => value.trim())
@@ -349,7 +350,7 @@ const getDiskUsage = () =>
         .filter(Boolean);
 
       const rows = lines.slice(1);
-      const volumes = rows
+      const parsed = rows
         .map((line) => {
           const cols = line.split(/\s+/);
           const mount = String(cols[0] || "");
@@ -359,8 +360,29 @@ const getDiskUsage = () =>
           const percent = Number(pctRaw || 0);
           return { mount, total, used, percent };
         })
-        .filter((v) => v.mount && Number.isFinite(v.total) && v.total > 0)
-        .sort((a, b) => a.mount.localeCompare(b.mount, "pt-BR"));
+        .filter((v) => v.mount && Number.isFinite(v.total) && v.total > 0);
+
+      const hostPrefix = HOST_FS_ROOT || "/hostfs";
+      const hasHostView = parsed.some((v) => v.mount === hostPrefix || v.mount.startsWith(`${hostPrefix}/`));
+
+      let volumes = parsed;
+      if (hasHostView) {
+        volumes = parsed
+          .filter((v) => v.mount === hostPrefix || v.mount.startsWith(`${hostPrefix}/`))
+          .map((v) => {
+            const normalizedMount = v.mount === hostPrefix ? "/" : v.mount.slice(hostPrefix.length);
+            return { ...v, mount: normalizedMount || "/" };
+          })
+          .filter((v) => !/^\/(proc|sys|dev|run)(\/|$)/.test(v.mount));
+      }
+
+      const uniqueByMount = new Map();
+      volumes.forEach((v) => {
+        if (!uniqueByMount.has(v.mount)) {
+          uniqueByMount.set(v.mount, v);
+        }
+      });
+      volumes = Array.from(uniqueByMount.values()).sort((a, b) => a.mount.localeCompare(b.mount, "pt-BR"));
 
       const total = volumes.reduce((sum, v) => sum + Number(v.total || 0), 0);
       const used = volumes.reduce((sum, v) => sum + Number(v.used || 0), 0);

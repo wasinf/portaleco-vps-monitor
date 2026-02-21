@@ -20,6 +20,11 @@ Rodando via:
 Backend → 4000  
 Frontend → 4001
 
+## Discos do host no card Sistema
+
+O backend monta o host em `/hostfs` (somente leitura) para listar volumes/discos reais do servidor no campo `Volumes`.
+Se necessario, ajustar `HOST_FS_ROOT` no `.env` (padrao: `/hostfs`).
+
 ## Staging (portas internas)
 
 Backend staging → 4100  
