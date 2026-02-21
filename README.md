@@ -205,6 +205,7 @@ Valida automaticamente:
 - existencia de backup recente em `backups/`
 - check de seguranca HTTP/rede via `scripts/security_check.sh` (prod e staging)
 - check de superficie de portas no host via `scripts/host_surface_check.sh`
+- check de uso de disco via `scripts/disk_guard_check.sh`
 
 Exemplo:
 

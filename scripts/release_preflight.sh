@@ -170,6 +170,18 @@ check_host_surface() {
   fi
 }
 
+check_disk_guard() {
+  if [ -x "$ROOT_DIR/scripts/disk_guard_check.sh" ]; then
+    if "$ROOT_DIR/scripts/disk_guard_check.sh"; then
+      ok "disk_guard_check: concluido"
+    else
+      fail "disk_guard_check: falhou"
+    fi
+  else
+    warn "disk_guard_check.sh ausente/sem permissao de execucao"
+  fi
+}
+
 echo "== Preflight portaleco-vps-monitor =="
 echo "Escopo: ${SCOPE}"
 
@@ -196,6 +208,7 @@ check_cron_entry "./scripts/health_alert_check.sh" "health_alert_check"
 
 check_recent_backup
 check_host_surface
+check_disk_guard
 
 echo "== Resultado =="
 echo "Erros: $errors"
