@@ -340,9 +340,15 @@ Script: `./scripts/auth_login_probe.sh [prod|staging]`
 
 Valida por ambiente com teste real via dominio publico:
 
+- login/sessao internos no container backend (obrigatorio)
 - login `POST /api/auth/login` com credencial do `.env`
 - recebimento de cookie de sessao
 - `GET /api/auth/me` com cookie retornando `200`
+
+Opcoes:
+
+- `AUTH_LOGIN_PROBE_PUBLIC=false` para pular probe publico
+- `AUTH_LOGIN_PROBE_SOFT_FAIL=true` para nao falhar quando o probe publico estiver indisponivel
 
 ## Auth repair from env
 

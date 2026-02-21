@@ -143,7 +143,12 @@ check_auth_consistency() {
 check_auth_login_probe() {
   local label="$1"
   if [ -x "$ROOT_DIR/scripts/auth_login_probe.sh" ]; then
-    if "$ROOT_DIR/scripts/auth_login_probe.sh" "$label"; then
+    if [ "$label" = "staging" ]; then
+      probe_cmd="AUTH_LOGIN_PROBE_SOFT_FAIL=true $ROOT_DIR/scripts/auth_login_probe.sh $label"
+    else
+      probe_cmd="$ROOT_DIR/scripts/auth_login_probe.sh $label"
+    fi
+    if bash -lc "$probe_cmd"; then
       ok "auth_login_probe ${label}: concluido"
     else
       fail "auth_login_probe ${label}: falhou"
