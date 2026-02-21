@@ -315,6 +315,7 @@ npm run security:staging
 
 npm run host:surface
 npm run log:maintain
+npm run incident:snapshot
 npm run cron:check
 npm run cron:apply
 npm run status:ops
@@ -434,6 +435,24 @@ Variaveis:
 
 - `MAX_BYTES` (padrao `5242880`)
 - `RETENTION_DAYS` (padrao `14`)
+
+## Incident snapshot
+
+Script: `./scripts/incident_snapshot.sh`
+
+Gera pacote de diagnostico em `backups/incidents/incident-<timestamp>.tgz` com:
+
+- estado do git e ultimos commits
+- status de containers e compose
+- tail de logs dos containers do monitor
+- preflight prod, ops status, health alert e auth probe
+- cron atual e headers HTTP do dominio prod
+
+Uso:
+
+```bash
+npm run incident:snapshot
+```
 
 ## Rotacao de credenciais auth
 

@@ -13,6 +13,7 @@
     "security:staging": "bash ./scripts/security_check.sh staging",
     "host:surface": "bash ./scripts/host_surface_check.sh",
     "log:maintain": "bash ./scripts/log_maintain.sh",
+    "incident:snapshot": "bash ./scripts/incident_snapshot.sh",
     "cron:check": "bash ./scripts/cron_reconcile.sh --check",
     "cron:apply": "bash ./scripts/cron_reconcile.sh --apply",
     "status:ops": "bash ./scripts/ops_status.sh",
