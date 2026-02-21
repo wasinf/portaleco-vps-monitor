@@ -316,6 +316,8 @@ npm run security:staging
 npm run host:surface
 npm run log:maintain
 npm run incident:snapshot
+npm run incident:prune
+npm run incident:prune:dry
 npm run cron:check
 npm run cron:apply
 npm run status:ops
@@ -413,6 +415,7 @@ Gerencia um bloco de cron idempotente para:
 - status operacional por hora
 - self-heal de auth em producao por hora (modo soft-fail para probe publico)
 - manutencao de logs diariamente (`03:20`)
+- limpeza de snapshots de incidente diariamente (`03:40`)
 
 Exemplos:
 
@@ -453,6 +456,14 @@ Uso:
 ```bash
 npm run incident:snapshot
 ```
+
+## Incident prune
+
+Script: `./scripts/incident_prune.sh [--apply|--dry-run]`
+
+Remove snapshots de incidente antigos no diretorio `backups/incidents`.
+
+Retencao padrao: `14` dias (ajustavel por `RETENTION_DAYS`).
 
 ## Rotacao de credenciais auth
 
