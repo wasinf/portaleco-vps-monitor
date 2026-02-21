@@ -20,6 +20,8 @@
     "auth:probe:staging": "bash ./scripts/auth_login_probe.sh staging",
     "auth:repair:prod": "bash ./scripts/auth_repair_from_env.sh prod",
     "auth:repair:staging": "bash ./scripts/auth_repair_from_env.sh staging",
+    "auth:selfheal:prod": "bash ./scripts/auth_selfheal.sh prod",
+    "auth:selfheal:staging": "AUTH_SELFHEAL_SOFT_FAIL_PUBLIC=true bash ./scripts/auth_selfheal.sh staging",
     "precheck:prod": "bash ./scripts/deploy_precheck.sh prod",
     "precheck:staging": "bash ./scripts/deploy_precheck.sh staging",
     "smoke:prod": "bash ./scripts/release_smoke.sh prod",

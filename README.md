@@ -313,6 +313,8 @@ npm run auth:probe:prod
 npm run auth:probe:staging
 npm run auth:repair:prod
 npm run auth:repair:staging
+npm run auth:selfheal:prod
+npm run auth:selfheal:staging
 ```
 
 `status:ops` mostra rapidamente: estado do Git, saude dos containers, HTTP de prod/staging, cron e backup mais recente.
@@ -368,6 +370,23 @@ Depois do reparo:
 
 ```bash
 npm run auth:check:prod
+```
+
+## Auth self-heal
+
+Script: `./scripts/auth_selfheal.sh [prod|staging]`
+
+Executa automaticamente:
+
+1. `auth_consistency_check`
+2. se falhar: `auth_repair_from_env` + novo check
+3. `auth_login_probe`
+
+Exemplos:
+
+```bash
+npm run auth:selfheal:prod
+npm run auth:selfheal:staging
 ```
 
 ## Rotacao de credenciais auth
