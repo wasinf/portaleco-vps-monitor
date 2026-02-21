@@ -7,6 +7,7 @@ BACKUP_LOG="${BACKUP_LOG:-/var/log/portaleco-backup.log}"
 HEALTH_LOG="${HEALTH_LOG:-/var/log/portaleco-health.log}"
 STATUS_LOG="${STATUS_LOG:-/var/log/portaleco-ops-status.log}"
 SELFHEAL_LOG="${SELFHEAL_LOG:-/var/log/portaleco-auth-selfheal.log}"
+LOG_MAINTAIN_LOG="${LOG_MAINTAIN_LOG:-/var/log/portaleco-log-maintain.log}"
 
 if [ "$MODE" != "--check" ] && [ "$MODE" != "--apply" ]; then
   echo "Uso: $0 [--check|--apply]"
@@ -23,6 +24,7 @@ $BEGIN_MARK
 */5 * * * * cd $ROOT_DIR && ./scripts/health_alert_check.sh >$HEALTH_LOG 2>&1
 15 * * * * cd $ROOT_DIR && npm run -s status:ops >$STATUS_LOG 2>&1
 35 * * * * cd $ROOT_DIR && AUTH_SELFHEAL_SOFT_FAIL_PUBLIC=true npm run -s auth:selfheal:prod >$SELFHEAL_LOG 2>&1
+20 3 * * * cd $ROOT_DIR && ./scripts/log_maintain.sh >$LOG_MAINTAIN_LOG 2>&1
 $END_MARK
 EOF
 }

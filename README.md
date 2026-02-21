@@ -305,6 +305,7 @@ npm run security:prod
 npm run security:staging
 
 npm run host:surface
+npm run log:maintain
 npm run cron:check
 npm run cron:apply
 npm run status:ops
@@ -401,6 +402,7 @@ Gerencia um bloco de cron idempotente para:
 - healthcheck a cada 5 minutos
 - status operacional por hora
 - self-heal de auth em producao por hora (modo soft-fail para probe publico)
+- manutencao de logs diariamente (`03:20`)
 
 Exemplos:
 
@@ -408,6 +410,21 @@ Exemplos:
 npm run cron:check
 npm run cron:apply
 ```
+
+## Log maintain
+
+Script: `./scripts/log_maintain.sh`
+
+Funcao:
+
+- rotaciona logs `portaleco-*.log` quando ultrapassarem tamanho maximo
+- compacta arquivo rotacionado (`.gz`)
+- remove rotacionados antigos por retencao
+
+Variaveis:
+
+- `MAX_BYTES` (padrao `5242880`)
+- `RETENTION_DAYS` (padrao `14`)
 
 ## Rotacao de credenciais auth
 
