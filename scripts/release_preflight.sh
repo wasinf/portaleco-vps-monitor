@@ -127,6 +127,19 @@ check_security() {
   fi
 }
 
+check_auth_consistency() {
+  local label="$1"
+  if [ -x "$ROOT_DIR/scripts/auth_consistency_check.sh" ]; then
+    if "$ROOT_DIR/scripts/auth_consistency_check.sh" "$label"; then
+      ok "auth_consistency_check ${label}: concluido"
+    else
+      fail "auth_consistency_check ${label}: falhou"
+    fi
+  else
+    warn "auth_consistency_check.sh ausente/sem permissao de execucao"
+  fi
+}
+
 check_host_surface() {
   if [ -x "$ROOT_DIR/scripts/host_surface_check.sh" ]; then
     if HOST_SURFACE_STRICT_ADMIN="$HOST_SURFACE_STRICT_ADMIN" "$ROOT_DIR/scripts/host_surface_check.sh"; then
@@ -146,6 +159,7 @@ if should_check prod; then
   check_env_file "$INFRA_DIR/.env" "prod"
   check_container "portaleco-vps-monitor-backend"
   check_container "portaleco-vps-monitor-frontend"
+  check_auth_consistency "prod"
   check_security "prod"
 fi
 
@@ -153,6 +167,7 @@ if should_check staging; then
   check_env_file "$INFRA_DIR/.env.staging" "staging"
   check_container "portaleco-vps-monitor-backend-staging"
   check_container "portaleco-vps-monitor-frontend-staging"
+  check_auth_consistency "staging"
   check_security "staging"
 fi
 

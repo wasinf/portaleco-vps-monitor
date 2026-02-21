@@ -183,6 +183,7 @@ Valida automaticamente:
 
 - variaveis criticas em `infra/.env` e `infra/.env.staging`
 - containers `running/healthy` em prod e staging
+- consistencia de auth (credencial em memoria x auth.db) por ambiente
 - presenca das entradas de cron esperadas
 - existencia de backup recente em `backups/`
 - check de seguranca HTTP/rede via `scripts/security_check.sh` (prod e staging)
@@ -306,6 +307,8 @@ npm run security:staging
 npm run host:surface
 npm run status:ops
 npm run status:ops:strict
+npm run auth:check:prod
+npm run auth:check:staging
 ```
 
 `status:ops` mostra rapidamente: estado do Git, saude dos containers, HTTP de prod/staging, cron e backup mais recente.
@@ -315,6 +318,17 @@ Opcoes do `status:ops`:
 - `OPS_STATUS_STRICT=true`: retorna `exit 1` se houver erro critico
 - `OPS_STATUS_FAIL_ON_WARN=true`: retorna `exit 1` tambem para avisos
 - `BACKUP_MAX_AGE_HOURS=48`: limite de idade para backup recente
+
+## Auth consistency check
+
+Script: `./scripts/auth_consistency_check.sh [prod|staging]`
+
+Valida por ambiente:
+
+- backend em execucao
+- `AUTH_USERNAME`/`AUTH_PASSWORD` presentes no container
+- credencial do ambiente valida no `auth.db`
+- usuario ativo no `auth.db`
 
 ## Rotacao de credenciais auth
 
