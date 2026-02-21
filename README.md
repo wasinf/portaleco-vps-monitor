@@ -152,10 +152,19 @@ Ele valida `running/healthy` para:
 - `portaleco-vps-monitor-backend-staging`
 - `portaleco-vps-monitor-frontend-staging`
 
+Tambem pode validar autenticacao:
+
+- probe real de login/sessao em `prod`
+- probe de `staging` (por padrao em soft-fail para evitar falso negativo por DNS externo)
+
 Se houver falha, retorna `exit 1` e opcionalmente envia webhook via:
 
 - `ALERT_WEBHOOK_URL`
 - arquivo local `infra/.health-alert.env` (nao versionado)
+- flags opcionais:
+  - `HEALTH_CHECK_AUTH_PROBE`
+  - `HEALTH_CHECK_AUTH_PROBE_STAGING`
+  - `HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL`
 
 Exemplo:
 

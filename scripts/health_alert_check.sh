@@ -13,6 +13,9 @@ PROD_FRONTEND="portaleco-vps-monitor-frontend"
 STG_BACKEND="portaleco-vps-monitor-backend-staging"
 STG_FRONTEND="portaleco-vps-monitor-frontend-staging"
 ALERT_WEBHOOK_URL="${ALERT_WEBHOOK_URL:-}"
+HEALTH_CHECK_AUTH_PROBE="${HEALTH_CHECK_AUTH_PROBE:-true}"
+HEALTH_CHECK_AUTH_PROBE_STAGING="${HEALTH_CHECK_AUTH_PROBE_STAGING:-true}"
+HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL="${HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL:-true}"
 
 failures=0
 report_lines=()
@@ -38,6 +41,26 @@ check_container_health "$PROD_BACKEND" "prod-backend"
 check_container_health "$PROD_FRONTEND" "prod-frontend"
 check_container_health "$STG_BACKEND" "staging-backend"
 check_container_health "$STG_FRONTEND" "staging-frontend"
+
+if [ "$HEALTH_CHECK_AUTH_PROBE" = "true" ]; then
+  if "$ROOT_DIR/scripts/auth_login_probe.sh" prod >/tmp/health_auth_prod.out 2>&1; then
+    report_lines+=("OK prod-auth-probe: login/sessao validos")
+  else
+    report_lines+=("FAIL prod-auth-probe: $(tail -n 1 /tmp/health_auth_prod.out 2>/dev/null || echo 'erro no probe')")
+    failures=$((failures + 1))
+  fi
+  rm -f /tmp/health_auth_prod.out 2>/dev/null || true
+fi
+
+if [ "$HEALTH_CHECK_AUTH_PROBE_STAGING" = "true" ]; then
+  if AUTH_LOGIN_PROBE_SOFT_FAIL="$HEALTH_CHECK_AUTH_PROBE_STAGING_SOFT_FAIL" "$ROOT_DIR/scripts/auth_login_probe.sh" staging >/tmp/health_auth_stg.out 2>&1; then
+    report_lines+=("OK staging-auth-probe: probe concluido")
+  else
+    report_lines+=("FAIL staging-auth-probe: $(tail -n 1 /tmp/health_auth_stg.out 2>/dev/null || echo 'erro no probe')")
+    failures=$((failures + 1))
+  fi
+  rm -f /tmp/health_auth_stg.out 2>/dev/null || true
+fi
 
 echo "Health check summary:"
 printf '%s\n' "${report_lines[@]}"
