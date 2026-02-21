@@ -309,6 +309,8 @@ npm run status:ops
 npm run status:ops:strict
 npm run auth:check:prod
 npm run auth:check:staging
+npm run auth:probe:prod
+npm run auth:probe:staging
 npm run auth:repair:prod
 npm run auth:repair:staging
 ```
@@ -331,6 +333,16 @@ Valida por ambiente:
 - `AUTH_USERNAME`/`AUTH_PASSWORD` presentes no container
 - credencial do ambiente valida no `auth.db`
 - usuario ativo no `auth.db`
+
+## Auth login probe
+
+Script: `./scripts/auth_login_probe.sh [prod|staging]`
+
+Valida por ambiente com teste real via dominio publico:
+
+- login `POST /api/auth/login` com credencial do `.env`
+- recebimento de cookie de sessao
+- `GET /api/auth/me` com cookie retornando `200`
 
 ## Auth repair from env
 

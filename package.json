@@ -16,6 +16,8 @@
     "status:ops:strict": "OPS_STATUS_STRICT=true bash ./scripts/ops_status.sh",
     "auth:check:prod": "bash ./scripts/auth_consistency_check.sh prod",
     "auth:check:staging": "bash ./scripts/auth_consistency_check.sh staging",
+    "auth:probe:prod": "bash ./scripts/auth_login_probe.sh prod",
+    "auth:probe:staging": "bash ./scripts/auth_login_probe.sh staging",
     "auth:repair:prod": "bash ./scripts/auth_repair_from_env.sh prod",
     "auth:repair:staging": "bash ./scripts/auth_repair_from_env.sh staging",
     "precheck:prod": "bash ./scripts/deploy_precheck.sh prod",
