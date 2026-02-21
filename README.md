@@ -309,6 +309,8 @@ npm run status:ops
 npm run status:ops:strict
 npm run auth:check:prod
 npm run auth:check:staging
+npm run auth:repair:prod
+npm run auth:repair:staging
 ```
 
 `status:ops` mostra rapidamente: estado do Git, saude dos containers, HTTP de prod/staging, cron e backup mais recente.
@@ -329,6 +331,26 @@ Valida por ambiente:
 - `AUTH_USERNAME`/`AUTH_PASSWORD` presentes no container
 - credencial do ambiente valida no `auth.db`
 - usuario ativo no `auth.db`
+
+## Auth repair from env
+
+Script: `./scripts/auth_repair_from_env.sh [prod|staging]`
+
+Uso recomendado quando login retorna `401` mesmo com senha correta no `.env`.
+
+Acao:
+
+- garante tabela `users` no `auth.db`
+- cria usuario do `AUTH_USERNAME` se nao existir
+- forca `password_hash` com `AUTH_PASSWORD` do ambiente
+- forca `active=1`
+- valida login internamente via `auth-store`
+
+Depois do reparo:
+
+```bash
+npm run auth:check:prod
+```
 
 ## Rotacao de credenciais auth
 
