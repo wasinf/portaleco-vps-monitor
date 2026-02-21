@@ -305,6 +305,8 @@ npm run security:prod
 npm run security:staging
 
 npm run host:surface
+npm run cron:check
+npm run cron:apply
 npm run status:ops
 npm run status:ops:strict
 npm run auth:check:prod
@@ -387,6 +389,24 @@ Exemplos:
 ```bash
 npm run auth:selfheal:prod
 npm run auth:selfheal:staging
+```
+
+## Cron reconcile
+
+Script: `./scripts/cron_reconcile.sh [--check|--apply]`
+
+Gerencia um bloco de cron idempotente para:
+
+- backup diario de auth
+- healthcheck a cada 5 minutos
+- status operacional por hora
+- self-heal de auth em producao por hora (modo soft-fail para probe publico)
+
+Exemplos:
+
+```bash
+npm run cron:check
+npm run cron:apply
 ```
 
 ## Rotacao de credenciais auth

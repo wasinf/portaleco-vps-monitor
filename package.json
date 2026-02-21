@@ -12,6 +12,8 @@
     "security:prod": "bash ./scripts/security_check.sh prod",
     "security:staging": "bash ./scripts/security_check.sh staging",
     "host:surface": "bash ./scripts/host_surface_check.sh",
+    "cron:check": "bash ./scripts/cron_reconcile.sh --check",
+    "cron:apply": "bash ./scripts/cron_reconcile.sh --apply",
     "status:ops": "bash ./scripts/ops_status.sh",
     "status:ops:strict": "OPS_STATUS_STRICT=true bash ./scripts/ops_status.sh",
     "auth:check:prod": "bash ./scripts/auth_consistency_check.sh prod",
