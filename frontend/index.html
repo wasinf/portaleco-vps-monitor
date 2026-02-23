@@ -807,18 +807,19 @@
         <div class="sys-top" id="sysMeta">Carregando...</div>
         <div class="sys-specs">
           <div class="spec">
-            <div class="spec-label">CPU</div>
+            <div class="spec-label">VM CPU</div>
             <div class="spec-value" id="cpuSpec">--</div>
           </div>
           <div class="spec">
-            <div class="spec-label">RAM</div>
+            <div class="spec-label">VM RAM</div>
             <div class="spec-value" id="ramSpec">--</div>
           </div>
           <div class="spec">
-            <div class="spec-label">Armazenamento</div>
+            <div class="spec-label">VM Disco</div>
             <div class="spec-value" id="diskSpec">--</div>
           </div>
         </div>
+        <div class="sys-top" id="extraDisksMeta">HDs adicionais: --</div>
         <div class="ram-chart-wrap">
           <div class="ram-chart-head">
             <div class="ram-chart-title">Oscilação em tempo real (RAM, CPU, Armazenamento)</div>
@@ -1491,25 +1492,32 @@
           parseJsonResponse(trafficRes)
         ]);
 
+        const diskVolumes = Array.isArray(system.disk?.volumes) ? system.disk.volumes : [];
+        const extraDiskMountsBlocked = new Set(["/boot", "/boot/efi"]);
+        const extraDisks = diskVolumes.filter((d) => !extraDiskMountsBlocked.has(String(d.mount || "")));
+        const extraTotal = extraDisks.reduce((sum, d) => sum + Number(d.total || 0), 0);
+        const extraUsed = extraDisks.reduce((sum, d) => sum + Number(d.used || 0), 0);
+        const vmDiskTotal = Math.max(0, Number(system.disk?.total || 0) - extraTotal);
+        const vmDiskUsed = Math.max(0, Number(system.disk?.used || 0) - extraUsed);
+
         document.getElementById("cpuSpec").textContent = String(system.cpu_cores || 4);
         document.getElementById("ramSpec").textContent =
           `${fmtNum(toGb(system.memory?.total))} GB / ${fmtNum(toMb(system.memory?.used))} MB`;
-        const diskVolumes = Array.isArray(system.disk?.volumes) ? system.disk.volumes : [];
         document.getElementById("diskSpec").textContent =
-          `${fmtNum(toGb(system.disk?.total))} GB / ${fmtNum(toGb(system.disk?.used))} GB` +
-          (diskVolumes.length > 1 ? ` (${diskVolumes.length} discos)` : "");
+          `${fmtNum(toGb(vmDiskTotal))} GB / ${fmtNum(toGb(vmDiskUsed))} GB`;
 
-        const diskDetails = diskVolumes.length > 0
-          ? " | Volumes: " + diskVolumes
+        const extraDiskDetails = extraDisks.length > 0
+          ? extraDisks
             .map((d) => `${d.mount} ${fmtNum(toGb(d.used))}/${fmtNum(toGb(d.total))} GB (${Number(d.percent || 0).toFixed(0)}%)`)
             .join(" | ")
-          : "";
+          : "nenhum";
+        document.getElementById("extraDisksMeta").textContent =
+          "HDs adicionais: " + extraDiskDetails;
 
         document.getElementById("sysMeta").textContent =
           "Host: " + (system.hostname || "-") +
-          " | RAM: " + fmtBytes(system.memory?.used) + " / " + fmtBytes(system.memory?.total) +
-          " | Disco: " + fmtBytes(system.disk?.used) + " / " + fmtBytes(system.disk?.total) +
-          diskDetails;
+          " | VM RAM: " + fmtBytes(system.memory?.used) + " / " + fmtBytes(system.memory?.total) +
+          " | VM Disco: " + fmtBytes(vmDiskUsed) + " / " + fmtBytes(vmDiskTotal);
         const startedAt = new Date(Date.now() - (Number(system.uptime_seconds || 0) * 1000));
         document.getElementById("sysUptime").textContent =
           "Tempo ativo do servidor: " + fmtUptime(system.uptime_seconds) +

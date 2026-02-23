@@ -31,12 +31,12 @@ services:
       test:
         [
           "CMD-SHELL",
-          "node -e \"const http=require('http');const req=http.get('http://127.0.0.1:4000/health',res=>process.exit(res.statusCode===200?0:1));req.on('error',()=>process.exit(1));\""
+          "node -e \"const http=require('http');const done=(c)=>{try{process.exit(c);}catch{process.exit(1);}};const watchdog=setTimeout(()=>done(1),2500);watchdog.unref();const req=http.get('http://127.0.0.1:4000/health',res=>{clearTimeout(watchdog);res.resume();done(res.statusCode===200?0:1);});req.setTimeout(2000,()=>{req.destroy(new Error('timeout'));});req.on('error',()=>{clearTimeout(watchdog);done(1);});\""
         ]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      interval: 60s
+      timeout: 3s
+      retries: 3
+      start_period: 45s
     networks:
       proxy:
       npm-network:
