@@ -48,6 +48,12 @@ if [ ! -f "$ENV_FILE" ]; then
   echo "Arquivo $ENV_FILE criado. Revise credenciais antes do uso em producao."
 fi
 
+if ! docker network inspect npm-network >/dev/null 2>&1; then
+  echo "Falha: rede Docker externa 'npm-network' nao encontrada."
+  echo "Crie/recupere a rede antes do deploy (usada pelo Nginx Proxy Manager)."
+  exit 1
+fi
+
 echo "Rebuildando containers em $ENVIRONMENT..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
 
