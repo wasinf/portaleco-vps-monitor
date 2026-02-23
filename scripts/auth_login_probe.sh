@@ -1,17 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${1:-prod}"
 AUTH_LOGIN_PROBE_PUBLIC="${AUTH_LOGIN_PROBE_PUBLIC:-true}"
 AUTH_LOGIN_PROBE_SOFT_FAIL="${AUTH_LOGIN_PROBE_SOFT_FAIL:-false}"
 
 case "$TARGET" in
   prod)
-    ENV_FILE="infra/.env"
+    ENV_FILE="$ROOT_DIR/infra/.env"
     CONTAINER="portaleco-vps-monitor-backend"
     ;;
   staging)
-    ENV_FILE="infra/.env.staging"
+    ENV_FILE="$ROOT_DIR/infra/.env.staging"
     CONTAINER="portaleco-vps-monitor-backend-staging"
     ;;
   *)
