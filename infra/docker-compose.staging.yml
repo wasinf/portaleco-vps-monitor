@@ -68,3 +68,5 @@ networks:
 
 volumes:
   portaleco_monitor_auth_data_staging:
+    external: true
+    name: portaleco-vps-monitor-staging_portaleco_monitor_auth_data_staging
