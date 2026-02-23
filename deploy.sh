@@ -30,6 +30,23 @@ echo "Atualizando branch main..."
 git checkout main
 git pull --ff-only origin main
 
+cd infra || exit
+
+if [ ! -f "$ENV_FILE" ]; then
+  if [ "$ENVIRONMENT" = "prod" ]; then
+    cp --update=none .env.example "$ENV_FILE"
+    echo "Arquivo $ENV_FILE criado a partir de .env.example."
+    echo "Falha: deploy de producao abortado para evitar uso acidental de credenciais/defaults."
+    echo "Revise $ENV_FILE e execute novamente o deploy."
+    exit 1
+  else
+    cp --update=none .env.staging.example "$ENV_FILE"
+    echo "Arquivo $ENV_FILE criado. Revise credenciais antes do uso em producao."
+  fi
+fi
+
+cd .. || exit
+
 if [ "$RUN_DEPLOY_PRECHECK" = "true" ] && [ -x "./scripts/deploy_precheck.sh" ]; then
   echo "Executando precheck de deploy (${ENVIRONMENT})..."
   ./scripts/deploy_precheck.sh "$ENVIRONMENT"
@@ -38,15 +55,6 @@ else
 fi
 
 cd infra || exit
-
-if [ ! -f "$ENV_FILE" ]; then
-  if [ "$ENVIRONMENT" = "prod" ]; then
-    cp --update=none .env.example "$ENV_FILE"
-  else
-    cp --update=none .env.staging.example "$ENV_FILE"
-  fi
-  echo "Arquivo $ENV_FILE criado. Revise credenciais antes do uso em producao."
-fi
 
 if ! docker network inspect npm-network >/dev/null 2>&1; then
   echo "Falha: rede Docker externa 'npm-network' nao encontrada."
