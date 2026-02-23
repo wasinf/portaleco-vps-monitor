@@ -25,7 +25,10 @@
     body {
       margin: 0;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(180deg, #f3f8ff, var(--bg));
+      background:
+        radial-gradient(1000px 500px at 10% -10%, rgba(42, 111, 203, 0.22), transparent 60%),
+        radial-gradient(900px 420px at 100% 0%, rgba(22, 94, 164, 0.16), transparent 62%),
+        linear-gradient(180deg, #f3f8ff, var(--bg));
       color: var(--ink);
       padding: 34px 28px;
       min-height: 100vh;
@@ -34,16 +37,47 @@
     .auth-shell {
       max-width: 420px;
       margin: 8vh auto 0;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: 0 16px 30px rgba(0,0,0,0.08);
-      padding: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(247,252,255,0.97));
+      border: 1px solid #cfe3fa;
+      border-radius: 20px;
+      box-shadow: 0 22px 50px rgba(17, 58, 106, 0.18);
+      padding: 20px;
+      backdrop-filter: blur(4px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-shell::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #1a6cc9, #2d8ae2, #1f6fca);
     }
 
     .auth-shell h2 {
-      margin: 0 0 8px;
-      font-size: 24px;
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .auth-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #2f6fb6;
+      margin: 6px 0 8px;
+    }
+
+    .auth-subtitle {
+      margin: 2px 0 10px;
+      color: #44678f;
+      font-size: 13px;
+      line-height: 1.35;
     }
 
     .auth-msg {
@@ -68,6 +102,45 @@
       padding: 10px 12px;
       font-size: 14px;
       color: var(--ink);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .auth-input:focus {
+      outline: none;
+      border-color: #67a0dd;
+      box-shadow: 0 0 0 3px rgba(31, 111, 202, 0.16);
+      background: #fbfdff;
+    }
+
+    .pw-wrap {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pw-toggle {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 10px;
+      height: 40px;
+      min-width: 78px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .pw-toggle:hover {
+      background: #f3f8ff;
+    }
+
+    .field-help {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
     }
 
     .auth-btn {
@@ -81,6 +154,23 @@
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.18s ease, filter 0.18s ease;
+      box-shadow: 0 10px 20px rgba(31, 111, 202, 0.22);
+    }
+
+    .auth-btn:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    .auth-btn:active {
+      transform: translateY(0);
+    }
+
+    .auth-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      box-shadow: none;
     }
 
     .session-bar {
@@ -197,6 +287,18 @@
       font-size: 13px;
       background: #fff;
       color: var(--ink);
+    }
+
+    .users-field .pw-wrap .auth-input {
+      border-radius: 8px;
+      height: 38px;
+      padding: 8px 10px;
+    }
+
+    .users-field .pw-wrap .pw-toggle {
+      height: 38px;
+      border-radius: 8px;
+      min-width: 72px;
     }
 
     .primary-btn {
@@ -440,12 +542,29 @@
     .service-item {
       border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 10px;
       background: #fff;
+      overflow: hidden;
+    }
+
+    .service-item[data-service-key="chalana-frontend"],
+    .service-item[data-service-key="chalana-backend"] {
+      grid-column: 1;
+    }
+
+    .service-toggle {
+      all: unset;
+      box-sizing: border-box;
+      width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       gap: 8px;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .service-toggle:hover {
+      background: #f8fbff;
     }
 
     .service-info {
@@ -458,6 +577,55 @@
       font-size: 12px;
       color: var(--muted);
       line-height: 1.25;
+      padding: 0 10px 10px;
+      display: none;
+    }
+
+    .service-item.open .service-detail {
+      display: block;
+    }
+
+    .card-tools {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .tool-field {
+      display: grid;
+      gap: 4px;
+      min-width: 180px;
+      flex: 1;
+    }
+
+    .tool-field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .tool-field input,
+    .tool-field select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .alerts-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      color: var(--ink);
+    }
+
+    .alerts-list li {
+      line-height: 1.3;
     }
 
     .traffic-wrap {
@@ -776,13 +944,18 @@
 </head>
 <body>
   <section class="auth-shell" id="loginView">
+    <div class="auth-kicker">Portaleco VPS Monitor</div>
     <h2>Acesso ao Monitor</h2>
+    <div class="auth-subtitle">Painel de operação e observabilidade da infraestrutura.</div>
     <div class="auth-msg" id="loginMsg">Informe suas credenciais para continuar.</div>
     <form id="loginForm">
       <label class="auth-label" for="usernameInput">Usuário</label>
       <input class="auth-input" id="usernameInput" name="username" autocomplete="username" required />
       <label class="auth-label" for="passwordInput">Senha</label>
-      <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
+      <div class="pw-wrap">
+        <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
+        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput">Mostrar</button>
+      </div>
       <button class="auth-btn" id="loginBtn" type="submit">Entrar</button>
     </form>
   </section>
@@ -862,12 +1035,43 @@
       </article>
 
       <article class="card full">
+        <div class="api-head">
+          <h2>Alertas Ativos</h2>
+          <span class="api-badge ok" id="alertsBadge">Sem alertas</span>
+        </div>
+        <div class="api-status" id="alertsList">
+          <div class="api-line">Sem alertas ativos.</div>
+        </div>
+      </article>
+
+      <article class="card full">
         <h2>Serviços</h2>
+        <div class="card-tools">
+          <div class="tool-field" style="max-width: 240px;">
+            <label for="serviceEnvFilter">Ambiente</label>
+            <select id="serviceEnvFilter">
+              <option value="all">Todos</option>
+              <option value="production" selected>Produção</option>
+              <option value="staging">Staging</option>
+            </select>
+          </div>
+          <div class="tool-field">
+            <label for="serviceSearchInput">Busca de serviço</label>
+            <input id="serviceSearchInput" placeholder="Ex.: monitor, chalana, cloudflare" />
+          </div>
+        </div>
+        <div class="meta" id="servicesMeta">Carregando...</div>
         <div class="services" id="services"></div>
       </article>
 
       <article class="card full">
         <h2>Containers Docker</h2>
+        <div class="card-tools">
+          <div class="tool-field">
+            <label for="dockerSearchInput">Busca de container</label>
+            <input id="dockerSearchInput" placeholder="Ex.: CTR-MONITOR, CTR-CHALANA" />
+          </div>
+        </div>
         <div class="meta" id="dockerMeta">Carregando...</div>
         <div style="margin-top:10px; overflow:auto;">
           <table id="dockerTable">
@@ -905,7 +1109,11 @@
           </div>
           <div class="users-field">
             <label for="newPassword">Senha inicial</label>
-            <input id="newPassword" type="password" placeholder="mínimo 8 caracteres" />
+            <div class="pw-wrap">
+              <input class="auth-input" id="newPassword" type="password" placeholder="mínimo 8 caracteres" />
+              <button class="pw-toggle" type="button" data-pw-toggle="newPassword">Mostrar</button>
+            </div>
+            <div class="field-help">Use senha forte: 8+ caracteres, maiúscula, minúscula, número e símbolo.</div>
           </div>
           <div class="users-field" style="max-width:160px;">
             <label for="newRole">Perfil</label>
@@ -945,6 +1153,10 @@
     let ramPollHandle = null;
     let currentUser = "";
     let currentRole = "";
+    let expandedServiceName = "";
+    let selectedServiceEnv = localStorage.getItem("service_env_filter") || "production";
+    let serviceSearchTerm = localStorage.getItem("service_search_term") || "";
+    let dockerSearchTerm = localStorage.getItem("docker_search_term") || "";
     let lastApiOkAt = null;
     let lastApiErrorAt = null;
     let lastApiErrorMessage = "";
@@ -1008,6 +1220,90 @@
 
     const dot = (ok) =>
       '<span class="dot ' + (ok ? 'ok' : 'bad') + '"></span>' + (ok ? "Online" : "Offline");
+
+    const friendlyServiceName = (rawName) => {
+      const name = String(rawName || "").trim();
+      const capitalizeFirst = (text) => {
+        const value = String(text || "");
+        if (!value) return value;
+        return value.charAt(0).toUpperCase() + value.slice(1);
+      };
+      const exactMap = {
+        "chalana-api": "Chalana (API)",
+        "firebird25": "Firebird (Container)",
+        "cloudflared-guardiao": "Cloudflared-guardiao",
+        "nginx-proxy-manager": "Nginx Proxy Manager",
+        "portainer": "Portainer",
+        "portaleco-panel": "Portaleco Panel",
+        "portaleco-chalana-chalana-1": "Chalana (Backend)",
+        "portaleco-chalana-portaleco-chalana-frontend-1": "Chalana (Frontend)",
+        "portaleco-vps-monitor-backend": "Monitor (Backend)",
+        "portaleco-vps-monitor-frontend": "Monitor (Frontend)",
+        "portaleco-vps-monitor-backend-staging": "Monitor (Backend - Staging)",
+        "portaleco-vps-monitor-frontend-staging": "Monitor (Frontend - Staging)",
+        "tunnel": "Tunnel Cloudflare",
+        "firebird monitor": "Firebird (Monitoria)"
+      };
+      if (exactMap[name]) return capitalizeFirst(exactMap[name]);
+      return capitalizeFirst(name
+        .replace(/^portaleco-vps-monitor-/, "Monitor ")
+        .replace(/^portaleco-chalana-/, "Chalana ")
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()));
+    };
+
+    const containerDisplayName = (rawName) => {
+      const name = String(rawName || "").trim();
+      const exactMap = {
+        "chalana-api": "ctr-chalana-api",
+        "portaleco-chalana-chalana-1": "ctr-chalana-backend",
+        "portaleco-chalana-portaleco-chalana-frontend-1": "ctr-chalana-frontend",
+        "portaleco-vps-monitor-backend": "ctr-monitor-backend",
+        "portaleco-vps-monitor-frontend": "ctr-monitor-frontend",
+        "portaleco-vps-monitor-backend-staging": "ctr-monitor-backend-staging",
+        "portaleco-vps-monitor-frontend-staging": "ctr-monitor-frontend-staging",
+        "cloudflared-guardiao": "ctr-cloudflared-guardiao",
+        "firebird25": "ctr-firebird25",
+        "nginx-proxy-manager": "ctr-nginx-proxy-manager",
+        "portainer": "ctr-portainer",
+        "portaleco-panel": "ctr-portaleco-panel"
+      };
+      const base = exactMap[name] || ("ctr-" + name.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
+      return base.toUpperCase();
+    };
+
+    const serviceLayoutKey = (rawName) => {
+      const name = String(rawName || "").trim().toLowerCase();
+      if (
+        name === "portaleco-chalana-portaleco-chalana-frontend-1" ||
+        name === "chalana frontend"
+      ) return "chalana-frontend";
+      if (
+        name === "portaleco-chalana-chalana-1" ||
+        name === "chalana backend"
+      ) return "chalana-backend";
+      return name;
+    };
+
+    const detectEnvironment = (rawName) => {
+      const name = String(rawName || "").toLowerCase();
+      return name.includes("staging") ? "staging" : "production";
+    };
+
+    const normalizeSearch = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+
+    const isContainerProblem = (container) => {
+      const state = String(container?.state || "").toLowerCase();
+      const status = String(container?.status || "").toLowerCase();
+      if (status.includes("unhealthy")) return true;
+      if (state === "restarting" || state === "paused" || state === "dead") return true;
+      return state !== "running";
+    };
 
     const dockerStateBadge = (container) => {
       const state = String(container?.state || "").toLowerCase();
@@ -1524,47 +1820,138 @@
           " | Iniciado em: " + fmtDateTime(startedAt);
         recordRamSample(system);
 
-        const dynamicServices = Array.isArray(services.items)
+        let dynamicServices = Array.isArray(services.items)
           ? services.items.map((item) => ({
             name: String(item?.name || ""),
             online: Boolean(item?.online),
             detail: String(item?.detail || "")
           }))
           : [];
+        const toTunnelKey = (name) =>
+          String(name || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "");
+        const tunnelAliases = new Set([
+          "cloudflaredguardiao",
+          "cloudflaretunnel",
+          "tunnelcloudflare",
+          "tunnel"
+        ]);
+        const tunnelCandidates = dynamicServices.filter((item) => tunnelAliases.has(toTunnelKey(item.name)));
+        dynamicServices = dynamicServices.filter((item) => !tunnelAliases.has(toTunnelKey(item.name)));
+        const mergedTunnelOnline =
+          tunnelCandidates.some((item) => Boolean(item.online)) || Boolean(tunnel.running);
+        const mergedTunnelDetailBase =
+          tunnelCandidates.map((item) => String(item.detail || "").trim()).find((v) => Boolean(v)) || "";
+        const tunnelDetail = "Registrado: " + (tunnel.registered ? "Sim" : "Não");
+        dynamicServices.push({
+          name: "cloudflared-guardiao",
+          online: mergedTunnelOnline,
+          detail: mergedTunnelDetailBase ? (mergedTunnelDetailBase + " | " + tunnelDetail) : tunnelDetail
+        });
         const serviceCards = [
           ...dynamicServices,
-          {
-            name: "tunnel",
-            online: Boolean(tunnel.running),
-            detail: "Registrado: " + (tunnel.registered ? "Sim" : "Não")
-          },
           {
             name: "firebird monitor",
             online: Boolean(firebird.ok),
             detail: "Versão: " + (firebird.version || "-") + " | Resp: " + (firebird.response_ms ?? "-") + " ms"
           }
         ];
+        const serviceCardsWithMeta = serviceCards.map((item) => ({
+          ...item,
+          displayName: friendlyServiceName(item.name),
+          environment: detectEnvironment(item.name)
+        }));
+        const normalizedServiceSearch = normalizeSearch(serviceSearchTerm);
+        const filteredServiceCards = serviceCardsWithMeta.filter((item) => {
+          if (selectedServiceEnv === "staging" && item.environment !== "staging") return false;
+          if (selectedServiceEnv === "production" && item.environment !== "production") return false;
+          if (!normalizedServiceSearch) return true;
+          const haystack = normalizeSearch(item.displayName + " " + item.name + " " + item.detail);
+          return haystack.includes(normalizedServiceSearch);
+        });
+        const orderedServiceCards = [...filteredServiceCards].sort((a, b) => {
+          if (a.online !== b.online) return a.online ? 1 : -1;
+          return String(a.displayName).localeCompare(String(b.displayName), "pt-BR");
+        });
+        const leftCount = Math.ceil(orderedServiceCards.length / 2);
+        const leftColumn = orderedServiceCards.slice(0, leftCount);
+        const rightColumn = orderedServiceCards.slice(leftCount);
+        const displayServiceCards = [];
+        for (let i = 0; i < leftCount; i += 1) {
+          if (leftColumn[i]) displayServiceCards.push(leftColumn[i]);
+          if (rightColumn[i]) displayServiceCards.push(rightColumn[i]);
+        }
+        const serviceOfflineCount = serviceCardsWithMeta.filter((item) => !item.online).length;
+        document.getElementById("servicesMeta").textContent =
+          "Exibindo: " + displayServiceCards.length +
+          " de " + serviceCardsWithMeta.length +
+          " | Offline: " + serviceOfflineCount +
+          " | Ordem: Offline primeiro e alfabética";
+
         const servicesEl = document.getElementById("services");
-        servicesEl.innerHTML = serviceCards.map((item) => {
-          const safeName = escapeHtml(item.name);
+        servicesEl.innerHTML = displayServiceCards.map((item) => {
+          const safeName = escapeHtml(item.displayName);
           const safeDetail = escapeHtml(item.detail);
-          return '<div class="service-item">' +
-            '<div class="service-info">' +
-              '<strong>' + safeName + '</strong>' +
-              '<div class="service-detail">' + safeDetail + '</div>' +
-            '</div>' +
-            '<span>' + dot(item.online) + '</span>' +
+          const isExpanded = expandedServiceName === String(item.name || "");
+          const expandedClass = isExpanded ? " open" : "";
+          const expandedAttr = isExpanded ? "true" : "false";
+          const serviceNameAttr = escapeHtml(item.name || "");
+          const serviceKeyAttr = escapeHtml(serviceLayoutKey(item.name || ""));
+          return '<div class="service-item' + expandedClass + '" data-service-key="' + serviceKeyAttr + '">' +
+            '<button type="button" class="service-toggle" data-service-name="' + serviceNameAttr + '" aria-expanded="' + expandedAttr + '">' +
+              '<div class="service-info">' +
+                '<strong>' + safeName + '</strong>' +
+              '</div>' +
+              '<span>' + dot(item.online) + '</span>' +
+            '</button>' +
+            '<div class="service-detail">' + safeDetail + '</div>' +
           '</div>';
         }).join("");
+        servicesEl.querySelectorAll(".service-toggle").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const selected = btn.getAttribute("data-service-name") || "";
+            const isOpen = btn.closest(".service-item")?.classList.contains("open");
+            expandedServiceName = isOpen ? "" : selected;
+            servicesEl.querySelectorAll(".service-item").forEach((itemEl) => {
+              itemEl.classList.toggle("open", itemEl.querySelector(".service-toggle")?.getAttribute("data-service-name") === expandedServiceName);
+            });
+            servicesEl.querySelectorAll(".service-toggle").forEach((toggleEl) => {
+              toggleEl.setAttribute("aria-expanded", String(toggleEl.getAttribute("data-service-name") === expandedServiceName));
+            });
+          });
+        });
 
         recordTrafficSample(traffic);
 
+        const dockerItems = (docker.containers || []).map((c) => ({
+          ...c,
+          displayName: containerDisplayName(c.name || "")
+        }));
+        const normalizedDockerSearch = normalizeSearch(dockerSearchTerm);
+        const filteredDockerItems = dockerItems
+          .filter((item) => {
+            if (!normalizedDockerSearch) return true;
+            const haystack = normalizeSearch(
+              item.displayName + " " + (item.name || "") + " " + (item.image || "") + " " + (item.network || "")
+            );
+            return haystack.includes(normalizedDockerSearch);
+          })
+          .sort((a, b) =>
+            String(a.displayName).localeCompare(String(b.displayName), "pt-BR")
+          );
+        const dockerProblemCount = dockerItems.filter((item) => isContainerProblem(item)).length;
         document.getElementById("dockerMeta").textContent =
-          "Total: " + (docker.total || 0) + " | Em execucao: " + (docker.running || 0);
+          "Total: " + (docker.total || 0) +
+          " | Em execucao: " + (docker.running || 0) +
+          " | Exibindo: " + filteredDockerItems.length +
+          " | Problemas: " + dockerProblemCount;
 
-        const rows = (docker.containers || []).map((c) => {
+        const rows = filteredDockerItems.map((c) => {
           const badge = dockerStateBadge(c);
-          const safeName = escapeHtml(c.name || "");
+          const safeName = escapeHtml(c.displayName || "");
           const safeNetwork = escapeHtml(c.network || "");
           return (
           "<tr>" +
@@ -1579,6 +1966,27 @@
 
         document.getElementById("dockerRows").innerHTML =
           rows || "<tr><td colspan='5'>Sem dados</td></tr>";
+
+        const alerts = [];
+        serviceCardsWithMeta
+          .filter((item) => !item.online)
+          .forEach((item) => alerts.push("Serviço offline: " + item.displayName));
+        dockerItems
+          .filter((item) => isContainerProblem(item))
+          .forEach((item) => alerts.push("Container com problema: " + item.displayName + " (" + (item.status || item.state || "-") + ")"));
+        const alertsBadgeEl = document.getElementById("alertsBadge");
+        const alertsListEl = document.getElementById("alertsList");
+        if (alerts.length === 0) {
+          alertsBadgeEl.className = "api-badge ok";
+          alertsBadgeEl.textContent = "Sem alertas";
+          alertsListEl.innerHTML = '<div class="api-line">Sem alertas ativos.</div>';
+        } else {
+          alertsBadgeEl.className = "api-badge bad";
+          alertsBadgeEl.textContent = alerts.length + " alerta(s)";
+          alertsListEl.innerHTML = '<ul class="alerts-list">' +
+            alerts.slice(0, 12).map((msg) => "<li>" + escapeHtml(msg) + "</li>").join("") +
+            "</ul>";
+        }
 
         document.getElementById("updatedAt").textContent =
           "Atualizado em: " + new Date().toLocaleString("pt-BR");
@@ -1801,6 +2209,43 @@
         window.alert(error.message || "Falha ao atualizar usuário");
       }
     });
+
+    document.getElementById("serviceEnvFilter").addEventListener("change", (event) => {
+      selectedServiceEnv = String(event.target.value || "all");
+      localStorage.setItem("service_env_filter", selectedServiceEnv);
+      load();
+    });
+
+    document.getElementById("serviceSearchInput").addEventListener("input", (event) => {
+      serviceSearchTerm = String(event.target.value || "");
+      localStorage.setItem("service_search_term", serviceSearchTerm);
+      load();
+    });
+
+    document.getElementById("dockerSearchInput").addEventListener("input", (event) => {
+      dockerSearchTerm = String(event.target.value || "");
+      localStorage.setItem("docker_search_term", dockerSearchTerm);
+      load();
+    });
+
+    document.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-pw-toggle]");
+      if (!btn) return;
+      const targetId = btn.getAttribute("data-pw-toggle");
+      const input = document.getElementById(targetId || "");
+      if (!input) return;
+      const isPassword = input.type === "password";
+      input.type = isPassword ? "text" : "password";
+      btn.textContent = isPassword ? "Ocultar" : "Mostrar";
+    });
+
+    const allowedEnvFilters = new Set(["all", "production", "staging"]);
+    if (!allowedEnvFilters.has(selectedServiceEnv)) {
+      selectedServiceEnv = "production";
+    }
+    document.getElementById("serviceEnvFilter").value = selectedServiceEnv;
+    document.getElementById("serviceSearchInput").value = serviceSearchTerm;
+    document.getElementById("dockerSearchInput").value = dockerSearchTerm;
 
     async function bootstrapSession() {
       try {
