@@ -101,6 +101,68 @@ Para ignorar preflight pos-deploy (apenas em emergencia):
 RUN_POST_DEPLOY_PREFLIGHT=false ./deploy.sh prod
 ```
 
+## Hardening recente (deploy/auth)
+
+Melhorias aplicadas para reduzir falhas por contexto de execucao, inconsistencias de ambiente e risco de deploy inseguro:
+
+1. Validacao fail-fast de rede externa `npm-network` no `deploy.sh`
+
+- Antes do `docker compose up`, o script verifica se a rede externa existe.
+- Se nao existir, o deploy aborta com mensagem objetiva de correcao.
+
+2. Correcao de path absoluto no `scripts/auth_login_probe.sh`
+
+- O probe agora resolve `.env` com base no diretorio raiz do projeto (`ROOT_DIR`), evitando erro por caminho relativo quando chamado por outros scripts.
+- Arquivos usados:
+  - `infra/.env`
+  - `infra/.env.staging`
+
+3. Protecao de producao quando `infra/.env` estiver ausente
+
+- Em `prod`, se `.env` nao existir:
+  - cria a partir de `.env.example`
+  - aborta o deploy na sequencia
+  - orienta revisao de credenciais antes de nova execucao
+- Objetivo: impedir subir producao com defaults acidentais.
+
+4. Reordenacao de fluxo no `deploy.sh`
+
+- Ordem atual:
+  1) preparar/garantir arquivo de ambiente
+  2) executar `scripts/deploy_precheck.sh`
+  3) seguir com deploy e validacoes pos-subida
+- Evita precheck sem contexto de ambiente pronto.
+
+5. Volume de autenticacao como externo (prod e staging)
+
+- Auth SQLite foi fixado como volume externo com `name` explicito:
+  - `infra/docker-compose.yml`
+  - `infra/docker-compose.staging.yml`
+- Evita recriacao acidental de volume e perda de referencia do `auth.db`.
+
+### Como validar rapidamente
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+
+# precheck por ambiente
+./scripts/deploy_precheck.sh prod
+./scripts/deploy_precheck.sh staging
+
+# probe de login interno/publico
+./scripts/auth_login_probe.sh prod
+./scripts/auth_login_probe.sh staging
+
+# deploy por ambiente
+./deploy.sh prod
+./deploy.sh staging
+```
+
+Observacoes operacionais:
+
+- Em `staging`, probe publico pode permanecer em soft-fail quando DNS externo nao resolve (`staging.monitor.portalecomdo.com.br`).
+- Esse comportamento nao bloqueia deploy de staging por padrao.
+
 ## Endpoints de autenticação
 
 - `POST /api/auth/login`
