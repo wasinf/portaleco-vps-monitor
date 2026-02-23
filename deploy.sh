@@ -49,7 +49,6 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 echo "Rebuildando containers em $ENVIRONMENT..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
 
 echo "Validando saude dos servicos..."
