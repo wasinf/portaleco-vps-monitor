@@ -87,6 +87,16 @@
       min-height: 18px;
     }
 
+    .auth-msg.is-error {
+      color: #9b2c2c;
+      font-weight: 600;
+    }
+
+    .auth-msg.is-ok {
+      color: #1f5f46;
+      font-weight: 600;
+    }
+
     .auth-label {
       display: block;
       font-weight: 600;
@@ -141,6 +151,28 @@
       font-size: 12px;
       color: var(--muted);
       line-height: 1.35;
+    }
+
+    .field-help-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+      display: grid;
+      gap: 2px;
+    }
+
+    .caps-warning {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #9b2c2c;
+      display: none;
+    }
+
+    .caps-warning.open {
+      display: block;
     }
 
     .auth-btn {
@@ -950,12 +982,17 @@
     <div class="auth-msg" id="loginMsg">Informe suas credenciais para continuar.</div>
     <form id="loginForm">
       <label class="auth-label" for="usernameInput">Usuário</label>
-      <input class="auth-input" id="usernameInput" name="username" autocomplete="username" required />
+      <input class="auth-input" id="usernameInput" name="username" autocomplete="username" placeholder="ex.: admin" required />
       <label class="auth-label" for="passwordInput">Senha</label>
       <div class="pw-wrap">
-        <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
-        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput">Mostrar</button>
+        <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required />
+        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput">Ver senha</button>
       </div>
+      <div class="caps-warning" id="capsWarning">Caps Lock está ligado.</div>
+      <ul class="field-help-list">
+        <li>Se o acesso falhar, confira usuário, senha e teclado.</li>
+        <li>Senha forte recomendada: 8+ caracteres, maiúscula, minúscula, número e símbolo.</li>
+      </ul>
       <button class="auth-btn" id="loginBtn" type="submit">Entrar</button>
     </form>
   </section>
@@ -1661,10 +1698,29 @@
       currentRole = String(role || "");
     };
 
-    const setLoginMessage = (message, isError = false) => {
+    const setLoginMessage = (message, isError = false, isSuccess = false) => {
       const el = document.getElementById("loginMsg");
       el.textContent = message;
-      el.style.color = isError ? "#9b2c2c" : "var(--muted)";
+      el.classList.remove("is-error", "is-ok");
+      if (isError) el.classList.add("is-error");
+      if (isSuccess) el.classList.add("is-ok");
+    };
+
+    const getLoginErrorMessage = (status, data, rawText) => {
+      const detail = String(data?.detail || data?.error || "").trim();
+      if (status === 401 || /autentic|credencial|invalid|inv[aá]lid/i.test(detail)) {
+        return "Usuário ou senha inválidos. Verifique e tente novamente.";
+      }
+      if (status === 429) {
+        return "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.";
+      }
+      if (status >= 500) {
+        return "Serviço de autenticação indisponível no momento. Tente novamente em instantes.";
+      }
+      if (detail) return detail;
+      const preview = String(rawText || "").replace(/\s+/g, " ").trim().slice(0, 120);
+      if (preview) return "Falha no login: " + preview;
+      return "Falha de autenticação.";
     };
 
     const showLoginView = (message, isError = false) => {
@@ -2044,6 +2100,10 @@
       const username = document.getElementById("usernameInput").value.trim();
       const password = document.getElementById("passwordInput").value;
       const button = document.getElementById("loginBtn");
+      if (!username || !password) {
+        setLoginMessage("Preencha usuário e senha para continuar.", true);
+        return;
+      }
       button.disabled = true;
       setLoginMessage("Autenticando...");
 
@@ -2055,10 +2115,18 @@
           cache: "no-store",
           body: JSON.stringify({ username, password })
         });
-        const data = await parseJsonResponse(response);
+        const rawText = await response.text();
+        let data = {};
+        if (rawText) {
+          try {
+            data = JSON.parse(rawText);
+          } catch (_) {
+            data = {};
+          }
+        }
 
         if (!response.ok) {
-          throw new Error(data.detail || data.error || "Falha de autenticação");
+          throw new Error(getLoginErrorMessage(response.status, data, rawText));
         }
 
         if (data.auth_enabled === false) {
@@ -2069,6 +2137,7 @@
         }
 
         setSession(data.user?.username || username, data.user?.role || "viewer");
+        setLoginMessage("Login realizado com sucesso.", false, true);
         showDashboardView();
         await load();
       } catch (error) {
@@ -2077,6 +2146,18 @@
         button.disabled = false;
       }
     });
+
+    const passwordInputEl = document.getElementById("passwordInput");
+    const capsWarningEl = document.getElementById("capsWarning");
+    if (passwordInputEl && capsWarningEl) {
+      const handleCapsWarning = (event) => {
+        const isCaps = Boolean(event?.getModifierState?.("CapsLock"));
+        capsWarningEl.classList.toggle("open", isCaps);
+      };
+      passwordInputEl.addEventListener("keydown", handleCapsWarning);
+      passwordInputEl.addEventListener("keyup", handleCapsWarning);
+      passwordInputEl.addEventListener("blur", () => capsWarningEl.classList.remove("open"));
+    }
 
     document.getElementById("logoutBtn").addEventListener("click", async () => {
       try {
