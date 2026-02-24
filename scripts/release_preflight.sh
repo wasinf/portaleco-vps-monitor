@@ -100,15 +100,18 @@ check_cron_entry() {
 }
 
 check_recent_backup() {
+  local label="$1"
+  local pattern="$2"
+
   if [ ! -d "$BACKUP_DIR" ]; then
     warn "diretorio de backup ausente ($BACKUP_DIR)"
     return
   fi
 
   local latest
-  latest="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'auth-*.tgz' -printf '%T@ %p\n' | sort -nr | head -n1 | awk '{print $2}')"
+  latest="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name "$pattern" -printf '%T@ %p\n' | sort -nr | head -n1 | awk '{print $2}')"
   if [ -z "${latest:-}" ]; then
-    warn "nenhum arquivo auth-*.tgz em $BACKUP_DIR"
+    warn "${label}: nenhum arquivo ${pattern} em $BACKUP_DIR"
     return
   fi
 
@@ -118,9 +121,9 @@ check_recent_backup() {
   age_hours="$(( (now - epoch) / 3600 ))"
 
   if [ "$age_hours" -le "$MAX_BACKUP_AGE_HOURS" ]; then
-    ok "backup recente: $(basename "$latest") (${age_hours}h)"
+    ok "${label}: backup recente: $(basename "$latest") (${age_hours}h)"
   else
-    warn "backup antigo: $(basename "$latest") (${age_hours}h)"
+    warn "${label}: backup antigo: $(basename "$latest") (${age_hours}h)"
   fi
 }
 
@@ -229,7 +232,15 @@ fi
 check_cron_entry "./scripts/backup_create.sh" "backup_create"
 check_cron_entry "./scripts/health_alert_check.sh" "health_alert_check"
 
-check_recent_backup
+if should_check prod; then
+  check_recent_backup "prod" "auth-prod-*.tgz"
+fi
+if should_check staging; then
+  check_recent_backup "staging" "auth-staging-*.tgz"
+fi
+if [ "$SCOPE" = "both" ]; then
+  check_recent_backup "geral" "auth-*.tgz"
+fi
 check_host_surface
 check_disk_guard
 
