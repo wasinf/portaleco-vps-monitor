@@ -31,6 +31,16 @@ should_check() {
   [ "$SCOPE" = "both" ] || [ "$SCOPE" = "$label" ]
 }
 
+check_docker_access() {
+  if docker info >/dev/null 2>&1; then
+    ok "acesso ao Docker: OK"
+    return 0
+  fi
+  fail "acesso ao Docker indisponivel para o usuario atual"
+  echo "Dica: execute com usuario no grupo docker ou use sudo."
+  return 1
+}
+
 check_env_file() {
   local env_file="$1"
   local label="$2"
@@ -185,22 +195,35 @@ check_disk_guard() {
 echo "== Preflight portaleco-vps-monitor =="
 echo "Escopo: ${SCOPE}"
 
+docker_ready=true
+if ! check_docker_access; then
+  docker_ready=false
+fi
+
 if should_check prod; then
   check_env_file "$INFRA_DIR/.env" "prod"
-  check_container "portaleco-vps-monitor-backend"
-  check_container "portaleco-vps-monitor-frontend"
-  check_auth_consistency "prod"
-  check_auth_login_probe "prod"
-  check_security "prod"
+  if [ "$docker_ready" = "true" ]; then
+    check_container "portaleco-vps-monitor-backend"
+    check_container "portaleco-vps-monitor-frontend"
+    check_auth_consistency "prod"
+    check_auth_login_probe "prod"
+    check_security "prod"
+  else
+    warn "checagens de container/auth/security de prod ignoradas por falta de acesso ao Docker"
+  fi
 fi
 
 if should_check staging; then
   check_env_file "$INFRA_DIR/.env.staging" "staging"
-  check_container "portaleco-vps-monitor-backend-staging"
-  check_container "portaleco-vps-monitor-frontend-staging"
-  check_auth_consistency "staging"
-  check_auth_login_probe "staging"
-  check_security "staging"
+  if [ "$docker_ready" = "true" ]; then
+    check_container "portaleco-vps-monitor-backend-staging"
+    check_container "portaleco-vps-monitor-frontend-staging"
+    check_auth_consistency "staging"
+    check_auth_login_probe "staging"
+    check_security "staging"
+  else
+    warn "checagens de container/auth/security de staging ignoradas por falta de acesso ao Docker"
+  fi
 fi
 
 check_cron_entry "./scripts/backup_create.sh" "backup_create"
