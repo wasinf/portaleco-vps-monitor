@@ -81,6 +81,7 @@ O script faz smoke test automatico apos subir:
 - loopback dentro do container frontend: `GET /`
 - smoke publico opcional (dominio de `ALLOWED_ORIGINS` ou `RELEASE_SMOKE_ORIGIN`)
 - Precheck de ambiente (`scripts/deploy_precheck.sh`)
+- Rollout sequencial (menor downtime): `build` antecipado, atualiza backend e frontend em etapas (`--no-deps`) com espera de saude entre elas
 
 Tambem grava log completo por execucao em:
 

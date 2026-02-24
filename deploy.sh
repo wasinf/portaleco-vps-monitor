@@ -24,11 +24,15 @@ RUN_DEPLOY_PRECHECK="${RUN_DEPLOY_PRECHECK:-true}"
 if [ "$ENVIRONMENT" = "prod" ]; then
   COMPOSE_FILE="docker-compose.yml"
   ENV_FILE=".env"
+  BACKEND_SERVICE="portaleco-vps-monitor-backend"
+  FRONTEND_SERVICE="portaleco-vps-monitor-frontend"
   BACKEND_CONTAINER="portaleco-vps-monitor-backend"
   FRONTEND_CONTAINER="portaleco-vps-monitor-frontend"
 elif [ "$ENVIRONMENT" = "staging" ]; then
   COMPOSE_FILE="docker-compose.staging.yml"
   ENV_FILE=".env.staging"
+  BACKEND_SERVICE="portaleco-vps-monitor-backend-staging"
+  FRONTEND_SERVICE="portaleco-vps-monitor-frontend-staging"
   BACKEND_CONTAINER="portaleco-vps-monitor-backend-staging"
   FRONTEND_CONTAINER="portaleco-vps-monitor-frontend-staging"
 else
@@ -38,6 +42,33 @@ fi
 
 echo "Ambiente: $ENVIRONMENT"
 echo "Ref de deploy: $DEPLOY_REF"
+
+wait_container_ready() {
+  local container_name="$1"
+  local timeout_seconds="${2:-120}"
+  local elapsed=0
+
+  while [ "$elapsed" -lt "$timeout_seconds" ]; do
+    local running
+    local health
+    running="$(docker inspect -f '{{.State.Running}}' "$container_name" 2>/dev/null || echo "false")"
+    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_name" 2>/dev/null || echo "missing")"
+
+    if [ "$running" = "true" ] && { [ "$health" = "healthy" ] || [ "$health" = "none" ]; }; then
+      return 0
+    fi
+    if [ "$health" = "unhealthy" ] || [ "$health" = "missing" ]; then
+      echo "Falha: container $container_name em estado invalido (running=$running, health=$health)."
+      return 1
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  echo "Falha: timeout aguardando $container_name ficar pronto."
+  return 1
+}
+
 echo "Atualizando codigo..."
 git fetch --prune --tags origin
 if git show-ref --verify --quiet "refs/heads/$DEPLOY_REF"; then
@@ -86,10 +117,18 @@ if ! docker network inspect npm-network >/dev/null 2>&1; then
 fi
 
 echo "Rebuildando containers em $ENVIRONMENT..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build "$BACKEND_SERVICE" "$FRONTEND_SERVICE"
+
+echo "Atualizando backend primeiro (menor impacto no frontend)..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps "$BACKEND_SERVICE"
+wait_container_ready "$BACKEND_CONTAINER" 180
+
+echo "Atualizando frontend..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps "$FRONTEND_SERVICE"
+wait_container_ready "$FRONTEND_CONTAINER" 120
 
 echo "Validando saude dos servicos..."
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
   backend_running="$(docker inspect -f '{{.State.Running}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "false")"
   frontend_running="$(docker inspect -f '{{.State.Running}}' "$FRONTEND_CONTAINER" 2>/dev/null || echo "false")"
   backend_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "missing")"
