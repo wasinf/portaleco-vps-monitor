@@ -350,7 +350,7 @@ Valida:
 
 - headers de seguranca (HSTS, CSP, nosniff, Referrer-Policy)
 - exposicao de portas publicas (`0.0.0.0`) com allowlist de servicos esperados
-- deteccao de superficie administrativa publica (`8088`, `9000`, `9443`, `81`)
+- deteccao de superficie administrativa publica (`8088`, `9000`, `9443`)
 
 Exemplos:
 
@@ -373,7 +373,7 @@ Script: `./scripts/host_surface_check.sh`
 Valida portas publicas escutando no host (0.0.0.0 / ::):
 
 - permitidas por padrao: `22,80,443`
-- observacao por padrao: `25,81`
+- observacao por padrao: `25` (`81` e tratado como esperado quando vinculado ao `nginx-proxy-manager`)
 - administrativas monitoradas: `8088,9000,9443`
 
 Modo estrito opcional:

@@ -3,7 +3,7 @@ set -euo pipefail
 
 STRICT_ADMIN="${HOST_SURFACE_STRICT_ADMIN:-false}"
 ALLOW_PUBLIC_PORTS="${ALLOW_PUBLIC_PORTS:-22,80,443}"
-WARN_PUBLIC_PORTS="${WARN_PUBLIC_PORTS:-25,81}"
+WARN_PUBLIC_PORTS="${WARN_PUBLIC_PORTS:-25}"
 ADMIN_PUBLIC_PORTS="${ADMIN_PUBLIC_PORTS:-8088,9000,9443}"
 
 errors=0
@@ -39,6 +39,25 @@ collect_public_ports() {
   ' | sed 's/[^0-9]//g' | rg '^[0-9]+$' | sort -u
 }
 
+is_expected_port_81_bind() {
+  if ! command -v docker >/dev/null 2>&1; then
+    return 2
+  fi
+
+  local rows
+  if ! rows="$(docker ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null)"; then
+    return 2
+  fi
+
+  if printf '%s\n' "$rows" | awk -F'\t' '
+    $1=="nginx-proxy-manager" && ($2 ~ /0\.0\.0\.0:80-81->80-81/ || $2 ~ /0\.0\.0\.0:81->/) { found=1 }
+    END { exit(found ? 0 : 1) }
+  '; then
+    return 0
+  fi
+  return 1
+}
+
 echo "== Host surface check =="
 echo "Modo estrito admin: ${STRICT_ADMIN}"
 echo "Portas publicas permitidas: ${ALLOW_PUBLIC_PORTS}"
@@ -58,6 +77,20 @@ if [ -z "${public_ports:-}" ]; then
 else
   while IFS= read -r port; do
     [ -n "$port" ] || continue
+
+    if [ "$port" = "81" ]; then
+      if is_expected_port_81_bind; then
+        ok "porta publica esperada (Nginx Proxy Manager): 81"
+      else
+        case $? in
+          1) fail "porta 81 publica inesperada (nao vinculada ao nginx-proxy-manager)" ;;
+          2) warn "porta 81 publica detectada, mas sem acesso ao Docker para validar ownership" ;;
+          *) fail "falha ao validar ownership da porta 81" ;;
+        esac
+      fi
+      continue
+    fi
+
     if csv_has "$ALLOW_PUBLIC_PORTS" "$port"; then
       ok "porta publica permitida: ${port}"
       continue
