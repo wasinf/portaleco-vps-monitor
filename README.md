@@ -122,6 +122,18 @@ Importante: no modo estrito, o preflight bloqueia quando existe bind publico em 
 (ex.: `0.0.0.0:8088`, `0.0.0.0:9443`), mesmo que o firewall esteja bloqueando entrada.
 Para passar no modo estrito, e necessario remover/restringir o bind publico dos containers.
 
+Para manter o deploy operacional quando houver falha temporaria de DNS/GitHub no host:
+
+```bash
+DEPLOY_SKIP_GIT_UPDATE=true ./deploy.sh prod
+```
+
+Esse modo:
+
+- nao executa `git fetch/checkout/pull` no inicio do deploy
+- usa exatamente o codigo ja presente no disco
+- e recomendado apenas para contingencia (curto prazo)
+
 ## Lockdown de superficie administrativa (8088/9443)
 
 Script: `./scripts/admin_surface_lockdown.sh [--check|--apply]`
