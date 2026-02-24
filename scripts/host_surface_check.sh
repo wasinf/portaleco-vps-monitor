@@ -2,6 +2,7 @@
 set -euo pipefail
 
 STRICT_ADMIN="${HOST_SURFACE_STRICT_ADMIN:-false}"
+ADMIN_ACCESS_MODE="${ADMIN_ACCESS_MODE:-lan_whitelist}"
 ALLOW_PUBLIC_PORTS="${ALLOW_PUBLIC_PORTS:-22,80,443}"
 WARN_PUBLIC_PORTS="${WARN_PUBLIC_PORTS:-25}"
 ADMIN_PUBLIC_PORTS="${ADMIN_PUBLIC_PORTS:-8088,9000,9443}"
@@ -60,6 +61,7 @@ is_expected_port_81_bind() {
 
 echo "== Host surface check =="
 echo "Modo estrito admin: ${STRICT_ADMIN}"
+echo "Modo de acesso admin: ${ADMIN_ACCESS_MODE}"
 echo "Portas publicas permitidas: ${ALLOW_PUBLIC_PORTS}"
 echo "Portas publicas de aviso: ${WARN_PUBLIC_PORTS}"
 echo "Portas admin monitoradas: ${ADMIN_PUBLIC_PORTS}"
@@ -102,7 +104,9 @@ else
     fi
 
     if csv_has "$ADMIN_PUBLIC_PORTS" "$port"; then
-      if [ "$STRICT_ADMIN" = "true" ]; then
+      if [ "$ADMIN_ACCESS_MODE" = "lan_whitelist" ]; then
+        ok "porta admin publica permitida em modo lan_whitelist (firewall deve restringir): ${port}"
+      elif [ "$STRICT_ADMIN" = "true" ]; then
         fail "porta admin publica bloqueada (modo estrito): ${port}"
       else
         warn "porta admin publica detectada: ${port}"

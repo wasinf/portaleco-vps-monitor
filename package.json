@@ -15,6 +15,7 @@
     "host:surface": "bash ./scripts/host_surface_check.sh",
     "admin:surface:check": "bash ./scripts/admin_surface_lockdown.sh --check",
     "admin:surface:apply": "sudo bash ./scripts/admin_surface_lockdown.sh --apply",
+    "admin:surface:remove": "sudo bash ./scripts/admin_surface_lockdown.sh --remove",
     "log:maintain": "bash ./scripts/log_maintain.sh",
     "incident:snapshot": "bash ./scripts/incident_snapshot.sh",
     "incident:prune": "bash ./scripts/incident_prune.sh --apply",

@@ -107,7 +107,7 @@ Para ignorar preflight pos-deploy (apenas em emergencia):
 RUN_POST_DEPLOY_PREFLIGHT=false ./deploy.sh prod
 ```
 
-Para bloquear deploy de producao quando houver superficie administrativa publica:
+Para exigir checks de superficie administrativa na publicacao:
 
 ```bash
 DEPLOY_STRICT_ADMIN_SURFACE=true ./deploy.sh prod
@@ -118,9 +118,9 @@ Esse modo repassa:
 - `SECURITY_STRICT_ADMIN_SURFACE=true`
 - `HOST_SURFACE_STRICT_ADMIN=true`
 
-Importante: no modo estrito, o preflight bloqueia quando existe bind publico em portas administrativas no Docker
-(ex.: `0.0.0.0:8088`, `0.0.0.0:9443`), mesmo que o firewall esteja bloqueando entrada.
-Para passar no modo estrito, e necessario remover/restringir o bind publico dos containers.
+Importante: com `ADMIN_ACCESS_MODE=lan_whitelist`, bind publico administrativo e aceito nos checks
+desde que o controle de acesso esteja no firewall (`DOCKER-USER`/UFW) com whitelist de LAN.
+Com `ADMIN_ACCESS_MODE=tunnel_only`, o modo estrito bloqueia bind publico administrativo.
 
 Para manter o deploy operacional quando houver falha temporaria de DNS/GitHub no host:
 
@@ -192,16 +192,42 @@ Criticos:
 - auth login probe interno/publico `OK`
 - `Erros: 0` no preflight
 
+## Politica de acesso administrativo (padrao unico)
+
+Padrao recomendado e adotado: **opcao B (LAN + whitelist)**.
+
+- `ADMIN_ACCESS_MODE=lan_whitelist`
+- Portainer em bind LAN (`0.0.0.0:9443`)
+- Bloqueio/restricao no firewall (`DOCKER-USER`) por CIDR autorizado
+- Sem misturar com `tunnel_only` sem documentacao formal
+
+Arquivo versionado de politica:
+
+- `infra/admin-surface.env.example`
+
+Para ativar no host:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor/infra
+cp admin-surface.env.example admin-surface.env
+```
+
 ## Lockdown de superficie administrativa (8088/9443)
 
-Script: `./scripts/admin_surface_lockdown.sh [--check|--apply]`
+Script: `./scripts/admin_surface_lockdown.sh [--check|--apply|--remove]`
 
-- `--check`: valida se ja existem regras de bloqueio no `DOCKER-USER`
-- `--apply`: cria regras `iptables` para bloquear acesso publico das portas administrativas
+- `--check`: valida regras conforme `ADMIN_ACCESS_MODE`
+- `--apply`: aplica regras no `DOCKER-USER`
+- `--remove`: remove regras gerenciadas pelo script
 
 Padrao de portas monitoradas:
 
 - `8088,9443`
+
+No modo `lan_whitelist`, o script aplica:
+
+- `ACCEPT` por CIDR da whitelist para as portas admin
+- `REJECT` para demais origens nas mesmas portas
 
 Exemplos:
 
@@ -209,6 +235,7 @@ Exemplos:
 cd /opt/apps/portaleco-vps-monitor
 sudo ./scripts/admin_surface_lockdown.sh --check
 sudo ./scripts/admin_surface_lockdown.sh --apply
+sudo ./scripts/admin_surface_lockdown.sh --remove
 ```
 
 Atalhos npm:
@@ -408,7 +435,7 @@ Valida:
 
 - headers de seguranca (HSTS, CSP, nosniff, Referrer-Policy)
 - exposicao de portas publicas (`0.0.0.0`) com allowlist de servicos esperados
-- deteccao de superficie administrativa publica (`8088`, `9000`, `9443`)
+- deteccao de superficie administrativa publica (`8088`, `9000`, `9443`) conforme `ADMIN_ACCESS_MODE`
 
 Exemplos:
 
@@ -418,11 +445,14 @@ cd /opt/apps/portaleco-vps-monitor
 ./scripts/security_check.sh staging
 ```
 
-Modo estrito opcional (falha quando detectar superficie admin publica):
+Modo estrito opcional:
 
 ```bash
 SECURITY_STRICT_ADMIN_SURFACE=true ./scripts/security_check.sh prod
 ```
+
+- `ADMIN_ACCESS_MODE=tunnel_only`: falha quando detectar bind admin publico
+- `ADMIN_ACCESS_MODE=lan_whitelist`: aceita bind admin publico e cobra controle por firewall
 
 ## Host surface check
 
@@ -439,6 +469,9 @@ Modo estrito opcional:
 ```bash
 HOST_SURFACE_STRICT_ADMIN=true ./scripts/host_surface_check.sh
 ```
+
+- `ADMIN_ACCESS_MODE=tunnel_only`: porta admin publica vira erro
+- `ADMIN_ACCESS_MODE=lan_whitelist`: porta admin publica e aceita (controle no firewall)
 
 ## Headers de seguranca no frontend
 

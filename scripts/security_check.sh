@@ -19,6 +19,7 @@ fi
 errors=0
 warnings=0
 STRICT_ADMIN_SURFACE="${SECURITY_STRICT_ADMIN_SURFACE:-false}"
+ADMIN_ACCESS_MODE="${ADMIN_ACCESS_MODE:-lan_whitelist}"
 
 ok() { echo "OK: $*"; }
 warn() { echo "WARN: $*"; warnings=$((warnings + 1)); }
@@ -81,9 +82,11 @@ check_public_ports() {
     ports="$(printf '%s' "$line" | cut -f2-)"
 
     if printf '%s' "$ports" | grep -Eq '0\.0\.0\.0:(8088|9000|9443)->'; then
-      if [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
+      if [ "$ADMIN_ACCESS_MODE" = "tunnel_only" ] && [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
         fail "superficie admin publica bloqueada (modo estrito): $line"
         flagged=1
+      elif [ "$ADMIN_ACCESS_MODE" = "lan_whitelist" ]; then
+        ok "bind admin publico permitido em modo lan_whitelist (firewall deve restringir): $line"
       else
         warn "superficie admin publica detectada: $line"
       fi
@@ -91,9 +94,11 @@ check_public_ports() {
     fi
 
     if printf '%s' "$ports" | grep -Eq '0\.0\.0\.0:81->' && [ "$name" != "nginx-proxy-manager" ]; then
-      if [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
+      if [ "$ADMIN_ACCESS_MODE" = "tunnel_only" ] && [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
         fail "superficie admin publica bloqueada (modo estrito): $line"
         flagged=1
+      elif [ "$ADMIN_ACCESS_MODE" = "lan_whitelist" ]; then
+        warn "porta 81 publica fora do NPM em modo lan_whitelist: $line"
       else
         warn "superficie admin publica detectada: $line"
       fi
@@ -121,6 +126,7 @@ check_public_ports() {
 
 echo "== Security check (${ENVIRONMENT}) =="
 echo "Modo estrito superficie admin: ${STRICT_ADMIN_SURFACE}"
+echo "Modo de acesso admin: ${ADMIN_ACCESS_MODE}"
 
 check_local_container_headers "$FRONTEND_CONTAINER"
 
