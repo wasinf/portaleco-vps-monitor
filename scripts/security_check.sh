@@ -80,7 +80,17 @@ check_public_ports() {
     name="$(printf '%s' "$line" | awk '{print $1}')"
     ports="$(printf '%s' "$line" | cut -f2-)"
 
-    if printf '%s' "$ports" | grep -Eq '0\.0\.0\.0:(8088|9000|9443|81)->'; then
+    if printf '%s' "$ports" | grep -Eq '0\.0\.0\.0:(8088|9000|9443)->'; then
+      if [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
+        fail "superficie admin publica bloqueada (modo estrito): $line"
+        flagged=1
+      else
+        warn "superficie admin publica detectada: $line"
+      fi
+      continue
+    fi
+
+    if printf '%s' "$ports" | grep -Eq '0\.0\.0\.0:81->' && [ "$name" != "nginx-proxy-manager" ]; then
       if [ "$STRICT_ADMIN_SURFACE" = "true" ]; then
         fail "superficie admin publica bloqueada (modo estrito): $line"
         flagged=1
@@ -91,7 +101,10 @@ check_public_ports() {
     fi
 
     case "$name" in
-      nginx-proxy-manager|cloudflared-portal-eco|portaleco-panel|portainer)
+      nginx-proxy-manager)
+        ok "bind publico esperado: $line"
+        ;;
+      cloudflared-*|portaleco-panel|portainer)
         warn "bind publico permitido/revisar: $line"
         ;;
       *)
