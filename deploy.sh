@@ -71,15 +71,38 @@ wait_container_ready() {
   return 1
 }
 
+retry_cmd() {
+  local max_attempts="$1"
+  local sleep_seconds="$2"
+  shift 2
+  local attempt=1
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      return 1
+    fi
+    echo "Tentativa ${attempt}/${max_attempts} falhou: $*"
+    sleep "$sleep_seconds"
+    attempt=$((attempt + 1))
+  done
+}
+
 echo "Atualizando codigo..."
-git fetch --prune --tags origin
+if ! retry_cmd 3 3 git fetch --prune --tags origin; then
+  echo "Falha: nao foi possivel atualizar refs do Git apos 3 tentativas."
+  echo "Verifique DNS/conectividade do host com github.com e tente novamente."
+  exit 1
+fi
 if git show-ref --verify --quiet "refs/heads/$DEPLOY_REF"; then
   git checkout "$DEPLOY_REF"
-  git pull --ff-only origin "$DEPLOY_REF"
-elif git ls-remote --exit-code --heads origin "$DEPLOY_REF" >/dev/null 2>&1; then
+  if git show-ref --verify --quiet "refs/remotes/origin/$DEPLOY_REF"; then
+    git merge --ff-only "origin/$DEPLOY_REF"
+  fi
+elif git show-ref --verify --quiet "refs/remotes/origin/$DEPLOY_REF"; then
   git checkout -B "$DEPLOY_REF" "origin/$DEPLOY_REF"
-elif git rev-parse -q --verify "refs/tags/$DEPLOY_REF" >/dev/null 2>&1 || \
-     git ls-remote --exit-code --tags origin "refs/tags/$DEPLOY_REF" >/dev/null 2>&1; then
+elif git rev-parse -q --verify "refs/tags/$DEPLOY_REF" >/dev/null 2>&1; then
   git checkout --detach "tags/$DEPLOY_REF"
 else
   echo "Falha: branch/tag '$DEPLOY_REF' nao encontrada no repositorio."
