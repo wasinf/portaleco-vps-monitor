@@ -4,6 +4,24 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+retry_cmd() {
+  local max_attempts="$1"
+  local sleep_seconds="$2"
+  shift 2
+  local attempt=1
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      return 1
+    fi
+    echo "Tentativa ${attempt}/${max_attempts} falhou: $*"
+    sleep "$sleep_seconds"
+    attempt=$((attempt + 1))
+  done
+}
+
 current_branch="$(git rev-parse --abbrev-ref HEAD)"
 if [ "$current_branch" = "HEAD" ]; then
   echo "FAIL: repositorio em estado detached HEAD."
@@ -51,9 +69,15 @@ echo "Commit: $commit_msg"
 git commit -m "$commit_msg"
 
 if git rev-parse --verify "@{upstream}" >/dev/null 2>&1; then
-  git push
+  push_cmd=(git push)
 else
-  git push -u origin "$current_branch"
+  push_cmd=(git push -u origin "$current_branch")
+fi
+
+if ! retry_cmd 3 3 "${push_cmd[@]}"; then
+  echo "FAIL: push nao concluido apos 3 tentativas."
+  echo "Verifique DNS/conectividade com github.com e tente novamente."
+  exit 1
 fi
 
 echo "Push concluido em: $current_branch"
