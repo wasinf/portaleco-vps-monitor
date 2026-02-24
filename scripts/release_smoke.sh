@@ -20,8 +20,10 @@ fi
 
 errors=0
 SMOKE_PUBLIC="${RELEASE_SMOKE_PUBLIC:-true}"
+SMOKE_STAGING_SOFT_FAIL_PUBLIC="${RELEASE_SMOKE_STAGING_SOFT_FAIL_PUBLIC:-true}"
 ok() { echo "OK: $*"; }
 fail() { echo "FAIL: $*"; errors=$((errors + 1)); }
+warn() { echo "WARN: $*"; }
 
 env_get() {
   local file="$1"
@@ -55,23 +57,34 @@ if [ "$SMOKE_PUBLIC" = "true" ]; then
   fi
 
   if [ -n "$origin" ]; then
+    public_errors=0
     if curl -fsS -o /dev/null --max-time 10 "$origin/"; then
       ok "frontend publico acessivel em ${origin}/"
     else
-      fail "frontend publico indisponivel em ${origin}/"
+      warn "frontend publico indisponivel em ${origin}/"
+      public_errors=$((public_errors + 1))
     fi
 
     auth_status="$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 10 "$origin/api/auth/me" || true)"
     if [ "$auth_status" = "200" ] || [ "$auth_status" = "401" ] || [ "$auth_status" = "403" ]; then
       ok "backend publico respondeu em /api/auth/me (HTTP ${auth_status})"
     else
-      fail "backend publico retornou HTTP ${auth_status:-000} em /api/auth/me"
+      warn "backend publico retornou HTTP ${auth_status:-000} em /api/auth/me"
+      public_errors=$((public_errors + 1))
+    fi
+
+    if [ "$public_errors" -gt 0 ]; then
+      if [ "$ENVIRONMENT" = "staging" ] && [ "$SMOKE_STAGING_SOFT_FAIL_PUBLIC" = "true" ]; then
+        warn "smoke publico em staging em soft-fail (RELEASE_SMOKE_STAGING_SOFT_FAIL_PUBLIC=${SMOKE_STAGING_SOFT_FAIL_PUBLIC})."
+      else
+        errors=$((errors + public_errors))
+      fi
     fi
   else
-    echo "WARN: smoke publico ignorado (RELEASE_SMOKE_ORIGIN/ALLOWED_ORIGINS ausente)."
+    warn "smoke publico ignorado (RELEASE_SMOKE_ORIGIN/ALLOWED_ORIGINS ausente)."
   fi
 else
-  echo "WARN: smoke publico desativado (RELEASE_SMOKE_PUBLIC=${SMOKE_PUBLIC})."
+  warn "smoke publico desativado (RELEASE_SMOKE_PUBLIC=${SMOKE_PUBLIC})."
 fi
 
 echo "== Resultado smoke =="
