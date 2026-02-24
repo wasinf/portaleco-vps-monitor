@@ -73,6 +73,7 @@ Script em `deploy.sh` com suporte a:
 
 - `./deploy.sh prod`
 - `./deploy.sh staging`
+- `./deploy.sh prod main` (branch/tag opcional; padrao: `main`)
 
 O script faz smoke test automatico apos subir:
 
@@ -80,6 +81,10 @@ O script faz smoke test automatico apos subir:
 - loopback dentro do container frontend: `GET /`
 - smoke publico opcional (dominio de `ALLOWED_ORIGINS` ou `RELEASE_SMOKE_ORIGIN`)
 - Precheck de ambiente (`scripts/deploy_precheck.sh`)
+
+Tambem grava log completo por execucao em:
+
+- `logs/deploy_YYYYmmdd_HHMMSS.log`
 
 Se algum teste falhar, o deploy termina com erro.
 

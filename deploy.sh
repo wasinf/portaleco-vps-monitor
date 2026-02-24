@@ -1,13 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR" || exit
+
+LOG_DIR="$ROOT_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log"
+if [ "${DEPLOY_LOG_DISABLE:-false}" != "true" ] && [ -z "${DEPLOY_LOG_ACTIVE:-}" ]; then
+  export DEPLOY_LOG_ACTIVE=1
+  exec > >(tee -a "$LOG_FILE") 2>&1
+fi
+
 echo "===================================="
 echo "PortalEco VPS Monitor - Deploy Script"
 echo "===================================="
-
-cd /opt/apps/portaleco-vps-monitor || exit
+echo "Log de deploy: $LOG_FILE"
 
 ENVIRONMENT="${1:-prod}"
+DEPLOY_REF="${2:-main}"
 RUN_DEPLOY_PRECHECK="${RUN_DEPLOY_PRECHECK:-true}"
 
 if [ "$ENVIRONMENT" = "prod" ]; then
@@ -21,14 +32,26 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
   BACKEND_CONTAINER="portaleco-vps-monitor-backend-staging"
   FRONTEND_CONTAINER="portaleco-vps-monitor-frontend-staging"
 else
-  echo "Uso: ./deploy.sh [prod|staging]"
+  echo "Uso: ./deploy.sh [prod|staging] [branch|tag]"
   exit 1
 fi
 
 echo "Ambiente: $ENVIRONMENT"
-echo "Atualizando branch main..."
-git checkout main
-git pull --ff-only origin main
+echo "Ref de deploy: $DEPLOY_REF"
+echo "Atualizando codigo..."
+git fetch --prune --tags origin
+if git show-ref --verify --quiet "refs/heads/$DEPLOY_REF"; then
+  git checkout "$DEPLOY_REF"
+  git pull --ff-only origin "$DEPLOY_REF"
+elif git ls-remote --exit-code --heads origin "$DEPLOY_REF" >/dev/null 2>&1; then
+  git checkout -B "$DEPLOY_REF" "origin/$DEPLOY_REF"
+elif git rev-parse -q --verify "refs/tags/$DEPLOY_REF" >/dev/null 2>&1 || \
+     git ls-remote --exit-code --tags origin "refs/tags/$DEPLOY_REF" >/dev/null 2>&1; then
+  git checkout --detach "tags/$DEPLOY_REF"
+else
+  echo "Falha: branch/tag '$DEPLOY_REF' nao encontrada no repositorio."
+  exit 1
+fi
 
 cd infra || exit
 
