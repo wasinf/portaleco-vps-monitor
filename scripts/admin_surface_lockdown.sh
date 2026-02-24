@@ -11,8 +11,9 @@ if [ "$MODE" != "--check" ] && [ "$MODE" != "--apply" ]; then
   exit 1
 fi
 
-if [ "$MODE" = "--apply" ] && [ "$(id -u)" -ne 0 ]; then
-  echo "FAIL: --apply requer root (use sudo)."
+if [ "$(id -u)" -ne 0 ]; then
+  echo "FAIL: este script requer root para consultar/aplicar regras iptables."
+  echo "Use: sudo $0 $MODE"
   exit 1
 fi
 

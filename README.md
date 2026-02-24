@@ -118,6 +118,10 @@ Esse modo repassa:
 - `SECURITY_STRICT_ADMIN_SURFACE=true`
 - `HOST_SURFACE_STRICT_ADMIN=true`
 
+Importante: no modo estrito, o preflight bloqueia quando existe bind publico em portas administrativas no Docker
+(ex.: `0.0.0.0:8088`, `0.0.0.0:9443`), mesmo que o firewall esteja bloqueando entrada.
+Para passar no modo estrito, e necessario remover/restringir o bind publico dos containers.
+
 ## Lockdown de superficie administrativa (8088/9443)
 
 Script: `./scripts/admin_surface_lockdown.sh [--check|--apply]`
@@ -133,7 +137,7 @@ Exemplos:
 
 ```bash
 cd /opt/apps/portaleco-vps-monitor
-./scripts/admin_surface_lockdown.sh --check
+sudo ./scripts/admin_surface_lockdown.sh --check
 sudo ./scripts/admin_surface_lockdown.sh --apply
 ```
 
