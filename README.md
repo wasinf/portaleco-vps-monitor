@@ -118,6 +118,32 @@ Esse modo repassa:
 - `SECURITY_STRICT_ADMIN_SURFACE=true`
 - `HOST_SURFACE_STRICT_ADMIN=true`
 
+## Lockdown de superficie administrativa (8088/9443)
+
+Script: `./scripts/admin_surface_lockdown.sh [--check|--apply]`
+
+- `--check`: valida se ja existem regras de bloqueio no `DOCKER-USER`
+- `--apply`: cria regras `iptables` para bloquear acesso publico das portas administrativas
+
+Padrao de portas monitoradas:
+
+- `8088,9443`
+
+Exemplos:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/admin_surface_lockdown.sh --check
+sudo ./scripts/admin_surface_lockdown.sh --apply
+```
+
+Atalhos npm:
+
+```bash
+npm run admin:surface:check
+npm run admin:surface:apply
+```
+
 ## Hardening recente (deploy/auth)
 
 Melhorias aplicadas para reduzir falhas por contexto de execucao, inconsistencias de ambiente e risco de deploy inseguro:
