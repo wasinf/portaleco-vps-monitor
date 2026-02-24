@@ -20,6 +20,7 @@ echo "Log de deploy: $LOG_FILE"
 ENVIRONMENT="${1:-prod}"
 DEPLOY_REF="${2:-main}"
 RUN_DEPLOY_PRECHECK="${RUN_DEPLOY_PRECHECK:-true}"
+DEPLOY_STRICT_ADMIN_SURFACE="${DEPLOY_STRICT_ADMIN_SURFACE:-false}"
 
 if [ "$ENVIRONMENT" = "prod" ]; then
   COMPOSE_FILE="docker-compose.yml"
@@ -42,6 +43,7 @@ fi
 
 echo "Ambiente: $ENVIRONMENT"
 echo "Ref de deploy: $DEPLOY_REF"
+echo "Modo estrito superficie admin no deploy: $DEPLOY_STRICT_ADMIN_SURFACE"
 
 wait_container_ready() {
   local container_name="$1"
@@ -160,7 +162,11 @@ fi
 
 if [ "${RUN_POST_DEPLOY_PREFLIGHT:-true}" = "true" ] && [ -x "../scripts/release_preflight.sh" ]; then
   echo "Executando preflight pos-deploy (${ENVIRONMENT})..."
-  ../scripts/release_preflight.sh "$ENVIRONMENT"
+  if [ "$ENVIRONMENT" = "prod" ] && [ "$DEPLOY_STRICT_ADMIN_SURFACE" = "true" ]; then
+    SECURITY_STRICT_ADMIN_SURFACE=true HOST_SURFACE_STRICT_ADMIN=true ../scripts/release_preflight.sh "$ENVIRONMENT"
+  else
+    ../scripts/release_preflight.sh "$ENVIRONMENT"
+  fi
 else
   echo "Preflight pos-deploy ignorado (RUN_POST_DEPLOY_PREFLIGHT=${RUN_POST_DEPLOY_PREFLIGHT:-true})."
 fi

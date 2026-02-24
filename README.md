@@ -107,6 +107,17 @@ Para ignorar preflight pos-deploy (apenas em emergencia):
 RUN_POST_DEPLOY_PREFLIGHT=false ./deploy.sh prod
 ```
 
+Para bloquear deploy de producao quando houver superficie administrativa publica:
+
+```bash
+DEPLOY_STRICT_ADMIN_SURFACE=true ./deploy.sh prod
+```
+
+Esse modo repassa:
+
+- `SECURITY_STRICT_ADMIN_SURFACE=true`
+- `HOST_SURFACE_STRICT_ADMIN=true`
+
 ## Hardening recente (deploy/auth)
 
 Melhorias aplicadas para reduzir falhas por contexto de execucao, inconsistencias de ambiente e risco de deploy inseguro:
