@@ -134,6 +134,64 @@ Esse modo:
 - usa exatamente o codigo ja presente no disco
 - e recomendado apenas para contingencia (curto prazo)
 
+## Runbook de operacao (producao)
+
+Fluxo recomendado de publicacao:
+
+1. Deploy normal (padrao)
+2. Contingencia sem update Git (somente quando necessario)
+3. Rollback por ref (tag/commit) quando houver regressao
+
+### 1) Deploy normal (padrao)
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+DEPLOY_STRICT_ADMIN_SURFACE=true ./deploy.sh prod main
+```
+
+Esperado:
+
+- `Deploy finalizado com sucesso!`
+- preflight final com `Erros: 0`
+
+### 2) Contingencia (GitHub/DNS instavel)
+
+Use apenas quando `git fetch/pull` falhar por conectividade e o codigo local ja estiver validado.
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+DEPLOY_STRICT_ADMIN_SURFACE=true DEPLOY_SKIP_GIT_UPDATE=true ./deploy.sh prod main
+```
+
+### 3) Rollback rapido por tag/branch
+
+Se houver regressao apos deploy:
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+DEPLOY_STRICT_ADMIN_SURFACE=true ./deploy.sh prod <tag-ou-branch-anterior>
+```
+
+Exemplo:
+
+```bash
+DEPLOY_STRICT_ADMIN_SURFACE=true ./deploy.sh prod v1.1.0
+```
+
+### 4) Verificacao pos-deploy (manual)
+
+```bash
+cd /opt/apps/portaleco-vps-monitor
+./scripts/release_preflight.sh prod
+curl -I https://monitor.portalecomdo.com.br
+```
+
+Criticos:
+
+- backend/frontend `running=true` e `health=healthy`
+- auth login probe interno/publico `OK`
+- `Erros: 0` no preflight
+
 ## Lockdown de superficie administrativa (8088/9443)
 
 Script: `./scripts/admin_surface_lockdown.sh [--check|--apply]`
