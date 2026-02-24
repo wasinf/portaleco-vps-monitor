@@ -21,6 +21,7 @@ ENVIRONMENT="${1:-prod}"
 DEPLOY_REF="${2:-main}"
 RUN_DEPLOY_PRECHECK="${RUN_DEPLOY_PRECHECK:-true}"
 DEPLOY_STRICT_ADMIN_SURFACE="${DEPLOY_STRICT_ADMIN_SURFACE:-false}"
+DEPLOY_SKIP_GIT_UPDATE="${DEPLOY_SKIP_GIT_UPDATE:-false}"
 
 if [ "$ENVIRONMENT" = "prod" ]; then
   COMPOSE_FILE="docker-compose.yml"
@@ -44,6 +45,7 @@ fi
 echo "Ambiente: $ENVIRONMENT"
 echo "Ref de deploy: $DEPLOY_REF"
 echo "Modo estrito superficie admin no deploy: $DEPLOY_STRICT_ADMIN_SURFACE"
+echo "Pular atualizacao Git: $DEPLOY_SKIP_GIT_UPDATE"
 
 wait_container_ready() {
   local container_name="$1"
@@ -90,23 +92,27 @@ retry_cmd() {
 }
 
 echo "Atualizando codigo..."
-if ! retry_cmd 3 3 git fetch --prune --tags origin; then
-  echo "Falha: nao foi possivel atualizar refs do Git apos 3 tentativas."
-  echo "Verifique DNS/conectividade do host com github.com e tente novamente."
-  exit 1
-fi
-if git show-ref --verify --quiet "refs/heads/$DEPLOY_REF"; then
-  git checkout "$DEPLOY_REF"
-  if git show-ref --verify --quiet "refs/remotes/origin/$DEPLOY_REF"; then
-    git merge --ff-only "origin/$DEPLOY_REF"
-  fi
-elif git show-ref --verify --quiet "refs/remotes/origin/$DEPLOY_REF"; then
-  git checkout -B "$DEPLOY_REF" "origin/$DEPLOY_REF"
-elif git rev-parse -q --verify "refs/tags/$DEPLOY_REF" >/dev/null 2>&1; then
-  git checkout --detach "tags/$DEPLOY_REF"
+if [ "$DEPLOY_SKIP_GIT_UPDATE" = "true" ]; then
+  echo "Atualizacao Git ignorada por DEPLOY_SKIP_GIT_UPDATE=true (usando codigo local)."
 else
-  echo "Falha: branch/tag '$DEPLOY_REF' nao encontrada no repositorio."
-  exit 1
+  if ! retry_cmd 3 3 git fetch --prune --tags origin; then
+    echo "Falha: nao foi possivel atualizar refs do Git apos 3 tentativas."
+    echo "Verifique DNS/conectividade do host com github.com e tente novamente."
+    exit 1
+  fi
+  if git show-ref --verify --quiet "refs/heads/$DEPLOY_REF"; then
+    git checkout "$DEPLOY_REF"
+    if git show-ref --verify --quiet "refs/remotes/origin/$DEPLOY_REF"; then
+      git merge --ff-only "origin/$DEPLOY_REF"
+    fi
+  elif git show-ref --verify --quiet "refs/remotes/origin/$DEPLOY_REF"; then
+    git checkout -B "$DEPLOY_REF" "origin/$DEPLOY_REF"
+  elif git rev-parse -q --verify "refs/tags/$DEPLOY_REF" >/dev/null 2>&1; then
+    git checkout --detach "tags/$DEPLOY_REF"
+  else
+    echo "Falha: branch/tag '$DEPLOY_REF' nao encontrada no repositorio."
+    exit 1
+  fi
 fi
 
 cd infra || exit
