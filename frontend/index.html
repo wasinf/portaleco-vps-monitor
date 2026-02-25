@@ -135,11 +135,16 @@
       color: var(--ink);
       border-radius: 10px;
       height: 40px;
-      min-width: 78px;
-      padding: 0 10px;
-      font-size: 12px;
+      width: 44px;
+      min-width: 44px;
+      padding: 0;
+      font-size: 18px;
       font-weight: 700;
       cursor: pointer;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .pw-toggle:hover {
@@ -986,7 +991,7 @@
       <label class="auth-label" for="passwordInput">Senha</label>
       <div class="pw-wrap">
         <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required />
-        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput">Ver senha</button>
+        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha">&#128065;</button>
       </div>
       <div class="caps-warning" id="capsWarning">Caps Lock está ligado.</div>
       <ul class="field-help-list">
@@ -2317,7 +2322,14 @@
       if (!input) return;
       const isPassword = input.type === "password";
       input.type = isPassword ? "text" : "password";
-      btn.textContent = isPassword ? "Ocultar" : "Mostrar";
+      const iconMode = btn.getAttribute("data-pw-icon") === "true";
+      if (iconMode) {
+        btn.innerHTML = "&#128065;";
+        btn.setAttribute("aria-label", isPassword ? "Ocultar senha" : "Mostrar senha");
+        btn.setAttribute("title", isPassword ? "Ocultar senha" : "Mostrar senha");
+      } else {
+        btn.textContent = isPassword ? "Ocultar" : "Mostrar";
+      }
     });
 
     const allowedEnvFilters = new Set(["all", "production", "staging"]);
