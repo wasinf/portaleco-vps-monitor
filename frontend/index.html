@@ -1699,6 +1699,8 @@
 
     const getLoginErrorMessage = (status, data, rawText) => {
       const detail = String(data?.detail || data?.error || "").trim();
+      const raw = String(rawText || "").trim();
+      const looksLikeHtml = /^<!doctype html>|^<html[\s>]/i.test(raw);
       if (status === 401 || /autentic|credencial|invalid|inv[aá]lid/i.test(detail)) {
         return "Usuário ou senha inválidos. Verifique e tente novamente.";
       }
@@ -1709,7 +1711,10 @@
         return "Serviço de autenticação indisponível no momento. Tente novamente em instantes.";
       }
       if (detail) return detail;
-      const preview = String(rawText || "").replace(/\s+/g, " ").trim().slice(0, 120);
+      if (looksLikeHtml) {
+        return "Falha na comunicação com a API de autenticação. Tente novamente.";
+      }
+      const preview = raw.replace(/\s+/g, " ").slice(0, 120);
       if (preview) return "Falha no login: " + preview;
       return "Falha de autenticação.";
     };
@@ -2132,7 +2137,12 @@
         showDashboardView();
         await load();
       } catch (error) {
-        setLoginMessage(error.message, true);
+        const msg = String(error?.message || "");
+        if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
+          setLoginMessage("Não foi possível conectar à API. Verifique a conectividade e tente novamente.", true);
+        } else {
+          setLoginMessage(msg || "Falha de autenticação.", true);
+        }
       } finally {
         button.disabled = false;
       }
