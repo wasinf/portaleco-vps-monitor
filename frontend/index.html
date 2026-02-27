@@ -2166,11 +2166,13 @@
       const username = document.getElementById("usernameInput").value.trim();
       const password = document.getElementById("passwordInput").value;
       const button = document.getElementById("loginBtn");
+      const originalButtonText = button.textContent;
       if (!username || !password) {
         setLoginMessage("Preencha usuário e senha para continuar.", true);
         return;
       }
       button.disabled = true;
+      button.textContent = "Entrando...";
       setLoginMessage("Autenticando...");
 
       try {
@@ -2215,6 +2217,7 @@
         }
       } finally {
         button.disabled = false;
+        button.textContent = originalButtonText;
       }
     });
 
