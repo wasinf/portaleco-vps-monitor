@@ -307,6 +307,84 @@
       display: flex;
     }
 
+    .dialog-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 42, 68, 0.42);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 60;
+    }
+
+    .dialog-modal.open {
+      display: flex;
+    }
+
+    .dialog-panel {
+      width: min(460px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+      padding: 14px;
+    }
+
+    .dialog-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .dialog-head h3 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .dialog-close {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .dialog-body {
+      display: grid;
+      gap: 8px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .inline-msg {
+      min-height: 18px;
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .inline-msg.is-error {
+      color: #9b2c2c;
+      font-weight: 600;
+    }
+
+    .inline-msg.is-ok {
+      color: #1f5f46;
+      font-weight: 600;
+    }
+
     .users-panel {
       width: min(980px, 100%);
       max-height: calc(100vh - 48px);
@@ -1221,6 +1299,43 @@
     </article>
   </section>
 
+  <section class="dialog-modal" id="changePasswordModal" aria-hidden="true">
+    <article class="dialog-panel">
+      <div class="dialog-head">
+        <h3>Trocar senha</h3>
+        <button class="dialog-close" id="closeChangePasswordModalBtn" type="button" aria-label="Fechar">×</button>
+      </div>
+      <form id="changePasswordForm" class="dialog-body">
+        <div class="users-field">
+          <label for="currentPasswordInput">Senha atual</label>
+          <div class="pw-wrap">
+            <input class="auth-input" id="currentPasswordInput" type="password" autocomplete="current-password" required />
+            <button class="pw-toggle" type="button" data-pw-toggle="currentPasswordInput" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha"></button>
+          </div>
+        </div>
+        <div class="users-field">
+          <label for="newPasswordInput">Nova senha</label>
+          <div class="pw-wrap">
+            <input class="auth-input" id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" required />
+            <button class="pw-toggle" type="button" data-pw-toggle="newPasswordInput" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha"></button>
+          </div>
+        </div>
+        <div class="users-field">
+          <label for="confirmPasswordInput">Confirmar nova senha</label>
+          <div class="pw-wrap">
+            <input class="auth-input" id="confirmPasswordInput" type="password" autocomplete="new-password" minlength="8" required />
+            <button class="pw-toggle" type="button" data-pw-toggle="confirmPasswordInput" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha"></button>
+          </div>
+        </div>
+        <p class="inline-msg" id="changePasswordMsg"></p>
+        <div class="dialog-actions">
+          <button class="mini-btn" id="cancelChangePasswordBtn" type="button">Cancelar</button>
+          <button class="primary-btn" id="submitChangePasswordBtn" type="submit">Salvar senha</button>
+        </div>
+      </form>
+    </article>
+  </section>
+
   <script>
     const API_TIMEOUT_MS = 10000;
     const LOGIN_USERNAME_KEY = "portaleco_login_username";
@@ -1748,6 +1863,8 @@
     const getRole = () => currentRole || "";
     const isAdmin = () => getRole() === "admin";
     const usersModalEl = document.getElementById("usersModal");
+    const changePasswordModalEl = document.getElementById("changePasswordModal");
+    const changePasswordMsgEl = document.getElementById("changePasswordMsg");
 
     const setSession = (username, role) => {
       currentUser = String(username || "");
@@ -1810,6 +1927,7 @@
       document.getElementById("loginView").style.display = "block";
       document.getElementById("dashboardView").style.display = "none";
       setLoginMessage(message, isError);
+      closeChangePasswordModal();
       focusLoginField();
       updateLoginButtonState();
       if (pollHandle) {
@@ -1865,6 +1983,7 @@
         user ? ("Usuário: " + user + (role ? " (" + role + ")" : "")) : "";
       document.getElementById("openUsersModalBtn").style.display = isAdmin() ? "inline-flex" : "none";
       closeUsersModal();
+      closeChangePasswordModal();
       if (!pollHandle) {
         pollHandle = setInterval(load, 10000);
       }
@@ -2329,40 +2448,47 @@
     });
 
     document.getElementById("changePasswordBtn").addEventListener("click", async () => {
-      const currentPassword = window.prompt("Informe sua senha atual:");
-      if (currentPassword === null) return;
-      const newPassword = window.prompt("Informe a nova senha (mínimo 8 caracteres):");
-      if (newPassword === null) return;
-      const confirmPassword = window.prompt("Confirme a nova senha:");
-      if (confirmPassword === null) return;
-
-      if (newPassword.length < 8) {
-        window.alert("A nova senha precisa ter no mínimo 8 caracteres.");
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        window.alert("A confirmação da senha não confere.");
-        return;
-      }
-
-      try {
-        const response = await apiFetch("/api/auth/change-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            current_password: currentPassword,
-            new_password: newPassword
-          })
-        });
-        const data = await parseJsonResponse(response);
-        if (!response.ok) {
-          throw new Error(data.detail || data.error || "Falha ao alterar senha.");
-        }
-        window.alert("Senha alterada com sucesso.");
-      } catch (error) {
-        window.alert(error.message || "Falha ao alterar senha.");
-      }
+      openChangePasswordModal();
     });
+
+    const setChangePasswordMessage = (message, isError = false, isSuccess = false) => {
+      if (!changePasswordMsgEl) return;
+      changePasswordMsgEl.textContent = message || "";
+      changePasswordMsgEl.classList.remove("is-error", "is-ok");
+      if (isError) changePasswordMsgEl.classList.add("is-error");
+      if (isSuccess) changePasswordMsgEl.classList.add("is-ok");
+    };
+
+    const resetChangePasswordForm = () => {
+      const form = document.getElementById("changePasswordForm");
+      if (!form) return;
+      form.reset();
+      ["currentPasswordInput", "newPasswordInput", "confirmPasswordInput"].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.type = "password";
+      });
+      document.querySelectorAll("#changePasswordModal [data-pw-toggle][data-pw-icon='true']").forEach((btn) => {
+        btn.innerHTML = passwordToggleIcon(false);
+        btn.setAttribute("aria-label", "Mostrar senha");
+        btn.setAttribute("title", "Mostrar senha");
+      });
+      setChangePasswordMessage("");
+    };
+
+    const openChangePasswordModal = () => {
+      resetChangePasswordForm();
+      changePasswordModalEl.classList.add("open");
+      changePasswordModalEl.setAttribute("aria-hidden", "false");
+      const currentInput = document.getElementById("currentPasswordInput");
+      if (currentInput) window.requestAnimationFrame(() => currentInput.focus());
+    };
+
+    const closeChangePasswordModal = () => {
+      if (!changePasswordModalEl) return;
+      changePasswordModalEl.classList.remove("open");
+      changePasswordModalEl.setAttribute("aria-hidden", "true");
+      resetChangePasswordForm();
+    };
 
     const openUsersModal = async () => {
       if (!isAdmin()) return;
@@ -2387,6 +2513,67 @@
     usersModalEl.addEventListener("click", (event) => {
       if (event.target === usersModalEl) {
         closeUsersModal();
+      }
+    });
+
+    document.getElementById("closeChangePasswordModalBtn").addEventListener("click", () => {
+      closeChangePasswordModal();
+    });
+
+    document.getElementById("cancelChangePasswordBtn").addEventListener("click", () => {
+      closeChangePasswordModal();
+    });
+
+    changePasswordModalEl.addEventListener("click", (event) => {
+      if (event.target === changePasswordModalEl) {
+        closeChangePasswordModal();
+      }
+    });
+
+    document.getElementById("changePasswordForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const currentPassword = document.getElementById("currentPasswordInput").value;
+      const newPassword = document.getElementById("newPasswordInput").value;
+      const confirmPassword = document.getElementById("confirmPasswordInput").value;
+      const submitBtn = document.getElementById("submitChangePasswordBtn");
+      const originalText = submitBtn.textContent;
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setChangePasswordMessage("Preencha todos os campos.", true);
+        return;
+      }
+      if (newPassword.length < 8) {
+        setChangePasswordMessage("A nova senha precisa ter no mínimo 8 caracteres.", true);
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setChangePasswordMessage("A confirmação da senha não confere.", true);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Salvando...";
+      setChangePasswordMessage("Atualizando senha...");
+      try {
+        const response = await apiFetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword
+          })
+        });
+        const data = await parseJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Falha ao alterar senha.");
+        }
+        setChangePasswordMessage("Senha alterada com sucesso.", false, true);
+        setTimeout(() => closeChangePasswordModal(), 500);
+      } catch (error) {
+        setChangePasswordMessage(error.message || "Falha ao alterar senha.", true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
       }
     });
 
@@ -2481,6 +2668,16 @@
       } else {
         btn.textContent = isPassword ? "Ocultar" : "Mostrar";
       }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && changePasswordModalEl.classList.contains("open")) {
+        closeChangePasswordModal();
+      }
+    });
+
+    document.querySelectorAll("#changePasswordModal [data-pw-toggle][data-pw-icon='true']").forEach((btn) => {
+      btn.innerHTML = passwordToggleIcon(false);
     });
 
     const allowedEnvFilters = new Set(["all", "production", "staging"]);
