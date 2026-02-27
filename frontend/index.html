@@ -1783,6 +1783,28 @@
       return "Falha de autenticação.";
     };
 
+    async function loginFetch(body) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      try {
+        return await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          cache: "no-store",
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          throw new Error("Tempo de resposta excedido ao autenticar. Tente novamente.");
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
     const showLoginView = (message, isError = false) => {
       document.getElementById("loginView").style.display = "block";
       document.getElementById("dashboardView").style.display = "none";
@@ -2186,13 +2208,7 @@
       setLoginMessage("Autenticando...");
 
       try {
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          cache: "no-store",
-          body: JSON.stringify({ username, password })
-        });
+        const response = await loginFetch({ username, password });
         const rawText = await response.text();
         let data = {};
         if (rawText) {
