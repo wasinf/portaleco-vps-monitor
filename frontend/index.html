@@ -1787,6 +1787,7 @@
       document.getElementById("loginView").style.display = "block";
       document.getElementById("dashboardView").style.display = "none";
       setLoginMessage(message, isError);
+      focusLoginField();
       if (pollHandle) {
         clearInterval(pollHandle);
         pollHandle = null;
@@ -1801,6 +1802,15 @@
       const msgEl = document.getElementById("loginMsg");
       if (!msgEl || !msgEl.classList.contains("is-error")) return;
       setLoginMessage("Informe suas credenciais para continuar.");
+    };
+
+    const focusLoginField = () => {
+      const usernameEl = document.getElementById("usernameInput");
+      const passwordEl = document.getElementById("passwordInput");
+      if (!usernameEl || !passwordEl) return;
+      const hasUsername = String(usernameEl.value || "").trim().length > 0;
+      const target = hasUsername ? passwordEl : usernameEl;
+      window.requestAnimationFrame(() => target.focus());
     };
 
     const showDashboardView = () => {
@@ -2209,12 +2219,15 @@
         showDashboardView();
         await load();
       } catch (error) {
+        const passwordEl = document.getElementById("passwordInput");
+        if (passwordEl) passwordEl.value = "";
         const msg = String(error?.message || "");
         if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
           setLoginMessage("Não foi possível conectar à API. Verifique a conectividade e tente novamente.", true);
         } else {
           setLoginMessage(msg || "Falha de autenticação.", true);
         }
+        focusLoginField();
       } finally {
         button.disabled = false;
         button.textContent = originalButtonText;
