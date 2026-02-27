@@ -1223,6 +1223,7 @@
 
   <script>
     const API_TIMEOUT_MS = 10000;
+    const LOGIN_USERNAME_KEY = "portaleco_login_username";
     const RAM_POLL_MS = 3000;
     const RAM_HISTORY_MAX_POINTS = 80;
     const TRAFFIC_HISTORY_MAX_POINTS = 80;
@@ -1810,6 +1811,7 @@
       document.getElementById("dashboardView").style.display = "none";
       setLoginMessage(message, isError);
       focusLoginField();
+      updateLoginButtonState();
       if (pollHandle) {
         clearInterval(pollHandle);
         pollHandle = null;
@@ -1824,6 +1826,25 @@
       const msgEl = document.getElementById("loginMsg");
       if (!msgEl || !msgEl.classList.contains("is-error")) return;
       setLoginMessage("Informe suas credenciais para continuar.");
+    };
+
+    const clearLoginFeedback = () => {
+      const msgEl = document.getElementById("loginMsg");
+      if (!msgEl) return;
+      if (msgEl.classList.contains("is-error") || msgEl.classList.contains("is-ok")) {
+        setLoginMessage("Informe suas credenciais para continuar.");
+      }
+    };
+
+    const updateLoginButtonState = () => {
+      const usernameEl = document.getElementById("usernameInput");
+      const passwordEl = document.getElementById("passwordInput");
+      const btn = document.getElementById("loginBtn");
+      if (!usernameEl || !passwordEl || !btn) return;
+      const ready = String(usernameEl.value || "").trim().length > 0 && String(passwordEl.value || "").length > 0;
+      if (!btn.disabled) {
+        btn.disabled = !ready;
+      }
     };
 
     const focusLoginField = () => {
@@ -2231,6 +2252,7 @@
         }
 
         setSession(data.user?.username || username, data.user?.role || "viewer");
+        localStorage.setItem(LOGIN_USERNAME_KEY, username);
         setLoginMessage("Login realizado com sucesso.", false, true);
         showDashboardView();
         await load();
@@ -2254,10 +2276,33 @@
     const usernameInputEl = document.getElementById("usernameInput");
     const capsWarningEl = document.getElementById("capsWarning");
     if (usernameInputEl) {
-      usernameInputEl.addEventListener("input", clearLoginErrorOnInput);
+      usernameInputEl.addEventListener("input", () => {
+        clearLoginErrorOnInput();
+        updateLoginButtonState();
+        localStorage.setItem(LOGIN_USERNAME_KEY, String(usernameInputEl.value || "").trim());
+      });
+      usernameInputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          clearLoginFeedback();
+          return;
+        }
+        if (event.key === "Enter" && passwordInputEl && String(passwordInputEl.value || "").length === 0) {
+          event.preventDefault();
+          passwordInputEl.focus();
+        }
+      });
     }
     if (passwordInputEl) {
-      passwordInputEl.addEventListener("input", clearLoginErrorOnInput);
+      passwordInputEl.addEventListener("input", () => {
+        clearLoginErrorOnInput();
+        updateLoginButtonState();
+      });
+      passwordInputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          clearLoginFeedback();
+          if (capsWarningEl) capsWarningEl.classList.remove("open");
+        }
+      });
     }
     if (passwordInputEl && capsWarningEl) {
       const handleCapsWarning = (event) => {
@@ -2445,6 +2490,13 @@
     document.getElementById("serviceEnvFilter").value = selectedServiceEnv;
     document.getElementById("serviceSearchInput").value = serviceSearchTerm;
     document.getElementById("dockerSearchInput").value = dockerSearchTerm;
+    if (usernameInputEl) {
+      const rememberedUsername = localStorage.getItem(LOGIN_USERNAME_KEY) || "";
+      if (rememberedUsername && !usernameInputEl.value) {
+        usernameInputEl.value = rememberedUsername;
+      }
+    }
+    updateLoginButtonState();
 
     async function bootstrapSession() {
       try {
