@@ -1797,6 +1797,12 @@
       }
     };
 
+    const clearLoginErrorOnInput = () => {
+      const msgEl = document.getElementById("loginMsg");
+      if (!msgEl || !msgEl.classList.contains("is-error")) return;
+      setLoginMessage("Informe suas credenciais para continuar.");
+    };
+
     const showDashboardView = () => {
       document.getElementById("loginView").style.display = "none";
       document.getElementById("dashboardView").style.display = "grid";
@@ -2213,7 +2219,14 @@
     });
 
     const passwordInputEl = document.getElementById("passwordInput");
+    const usernameInputEl = document.getElementById("usernameInput");
     const capsWarningEl = document.getElementById("capsWarning");
+    if (usernameInputEl) {
+      usernameInputEl.addEventListener("input", clearLoginErrorOnInput);
+    }
+    if (passwordInputEl) {
+      passwordInputEl.addEventListener("input", clearLoginErrorOnInput);
+    }
     if (passwordInputEl && capsWarningEl) {
       const handleCapsWarning = (event) => {
         const isCaps = Boolean(event?.getModifierState?.("CapsLock"));
