@@ -375,6 +375,10 @@
       color: var(--muted);
     }
 
+    #usersActionMsg {
+      flex-basis: 100%;
+    }
+
     .inline-msg.is-error {
       color: #9b2c2c;
       font-weight: 600;
@@ -1280,6 +1284,7 @@
             </select>
           </div>
           <button class="primary-btn" id="createUserBtn" type="button">Criar usuário</button>
+        <p class="inline-msg" id="usersActionMsg"></p>
         <div class="meta" id="usersMeta">Carregando usuários...</div>
         <div style="margin-top:10px; overflow:auto;">
           <table>
@@ -1865,6 +1870,7 @@
     const usersModalEl = document.getElementById("usersModal");
     const changePasswordModalEl = document.getElementById("changePasswordModal");
     const changePasswordMsgEl = document.getElementById("changePasswordMsg");
+    const usersActionMsgEl = document.getElementById("usersActionMsg");
 
     const setSession = (username, role) => {
       currentUser = String(username || "");
@@ -2459,6 +2465,14 @@
       if (isSuccess) changePasswordMsgEl.classList.add("is-ok");
     };
 
+    const setUsersActionMessage = (message, isError = false, isSuccess = false) => {
+      if (!usersActionMsgEl) return;
+      usersActionMsgEl.textContent = message || "";
+      usersActionMsgEl.classList.remove("is-error", "is-ok");
+      if (isError) usersActionMsgEl.classList.add("is-error");
+      if (isSuccess) usersActionMsgEl.classList.add("is-ok");
+    };
+
     const resetChangePasswordForm = () => {
       const form = document.getElementById("changePasswordForm");
       if (!form) return;
@@ -2494,12 +2508,14 @@
       if (!isAdmin()) return;
       usersModalEl.classList.add("open");
       usersModalEl.setAttribute("aria-hidden", "false");
+      setUsersActionMessage("");
       await loadUsers();
     };
 
     const closeUsersModal = () => {
       usersModalEl.classList.remove("open");
       usersModalEl.setAttribute("aria-hidden", "true");
+      setUsersActionMessage("");
     };
 
     document.getElementById("openUsersModalBtn").addEventListener("click", () => {
@@ -2583,15 +2599,16 @@
       const role = document.getElementById("newRole").value;
 
       if (!username || !password) {
-        window.alert("Preencha usuário e senha.");
+        setUsersActionMessage("Preencha usuário e senha.", true);
         return;
       }
       if (password.length < 8) {
-        window.alert("A senha precisa ter no mínimo 8 caracteres.");
+        setUsersActionMessage("A senha precisa ter no mínimo 8 caracteres.", true);
         return;
       }
 
       try {
+        setUsersActionMessage("Criando usuário...");
         const response = await apiFetch("/api/auth/users", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2604,9 +2621,10 @@
         document.getElementById("newUsername").value = "";
         document.getElementById("newPassword").value = "";
         document.getElementById("newRole").value = "viewer";
+        setUsersActionMessage("Usuário criado com sucesso.", false, true);
         await loadUsers();
       } catch (error) {
-        window.alert(error.message || "Falha ao criar usuário");
+        setUsersActionMessage(error.message || "Falha ao criar usuário", true);
       }
     });
 
@@ -2618,6 +2636,7 @@
       const nextActive = !currentlyActive;
 
       try {
+        setUsersActionMessage("Atualizando usuário...");
         const response = await apiFetch("/api/auth/users/" + encodeURIComponent(username) + "/active", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -2627,9 +2646,10 @@
         if (!response.ok) {
           throw new Error(data.detail || data.error || "Falha ao atualizar usuário");
         }
+        setUsersActionMessage("Usuário atualizado com sucesso.", false, true);
         await loadUsers();
       } catch (error) {
-        window.alert(error.message || "Falha ao atualizar usuário");
+        setUsersActionMessage(error.message || "Falha ao atualizar usuário", true);
       }
     });
 
