@@ -147,6 +147,16 @@
       justify-content: center;
     }
 
+    .pw-toggle svg {
+      width: 18px;
+      height: 18px;
+      stroke: #2a4d75;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     .pw-toggle:hover {
       background: #f3f8ff;
     }
@@ -981,7 +991,12 @@
       <label class="auth-label" for="passwordInput">Senha</label>
       <div class="pw-wrap">
         <input class="auth-input" id="passwordInput" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required />
-        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha">&#128065;</button>
+        <button class="pw-toggle" type="button" data-pw-toggle="passwordInput" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2 12s3.8-6 10-6 10 6 10 6-3.8 6-10 6-10-6-10-6z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
       </div>
       <div class="caps-warning" id="capsWarning">Caps Lock está ligado.</div>
       <button class="auth-btn" id="loginBtn" type="submit">Entrar</button>
@@ -1228,6 +1243,19 @@
       return parts.join(" ");
     };
     const fmtDateTime = (date) => date.toLocaleString("pt-BR");
+    const passwordToggleIcon = (visible) => {
+      if (visible) {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+          '<path d="M2 12s3.8-6 10-6 10 6 10 6-3.8 6-10 6-10-6-10-6z"></path>' +
+          '<circle cx="12" cy="12" r="3"></circle>' +
+          '<path d="M3 3l18 18"></path>' +
+        '</svg>';
+      }
+      return '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M2 12s3.8-6 10-6 10 6 10 6-3.8 6-10 6-10-6-10-6z"></path>' +
+        '<circle cx="12" cy="12" r="3"></circle>' +
+      '</svg>';
+    };
     const fmtAgo = (date) => {
       if (!date) return "";
       const sec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
@@ -2320,9 +2348,10 @@
       input.type = isPassword ? "text" : "password";
       const iconMode = btn.getAttribute("data-pw-icon") === "true";
       if (iconMode) {
-        btn.innerHTML = "&#128065;";
-        btn.setAttribute("aria-label", isPassword ? "Ocultar senha" : "Mostrar senha");
-        btn.setAttribute("title", isPassword ? "Ocultar senha" : "Mostrar senha");
+        const visible = !isPassword;
+        btn.innerHTML = passwordToggleIcon(visible);
+        btn.setAttribute("aria-label", visible ? "Ocultar senha" : "Mostrar senha");
+        btn.setAttribute("title", visible ? "Ocultar senha" : "Mostrar senha");
       } else {
         btn.textContent = isPassword ? "Ocultar" : "Mostrar";
       }
