@@ -2523,10 +2523,37 @@
       if (isSuccess) usersActionMsgEl.classList.add("is-ok");
     };
 
+    const getCreateUserValidation = () => {
+      const username = String(document.getElementById("newUsername")?.value || "").trim();
+      const password = String(document.getElementById("newPassword")?.value || "");
+      if (!username && !password) {
+        return { valid: false, message: "", showError: false };
+      }
+      if (!username || !password) {
+        return { valid: false, message: "Preencha usuário e senha.", showError: true };
+      }
+      if (password.length < 8) {
+        return { valid: false, message: "A senha precisa ter no mínimo 8 caracteres.", showError: true };
+      }
+      return { valid: true, message: "", showError: false };
+    };
+
+    const refreshCreateUserFormState = () => {
+      const createBtn = document.getElementById("createUserBtn");
+      if (!createBtn) return;
+      const validation = getCreateUserValidation();
+      createBtn.disabled = usersActionBusy || !validation.valid;
+      if (usersActionBusy) return;
+      if (validation.showError) {
+        setUsersActionMessage(validation.message, true);
+      } else if (usersActionMsgEl?.classList.contains("is-error")) {
+        setUsersActionMessage("");
+      }
+    };
+
     const setUsersActionsBusy = (busy) => {
       usersActionBusy = Boolean(busy);
-      const createBtn = document.getElementById("createUserBtn");
-      if (createBtn) createBtn.disabled = usersActionBusy;
+      refreshCreateUserFormState();
       document.querySelectorAll("#usersRows button[data-user-toggle]").forEach((btn) => {
         btn.disabled = usersActionBusy;
       });
@@ -2570,6 +2597,7 @@
       usersModalEl.classList.add("open");
       usersModalEl.setAttribute("aria-hidden", "false");
       setUsersActionMessage("");
+      refreshCreateUserFormState();
       const usernameEl = document.getElementById("newUsername");
       if (usernameEl) window.requestAnimationFrame(() => usernameEl.focus());
       await loadUsers();
@@ -2661,18 +2689,23 @@
       });
     });
 
+    ["newUsername", "newPassword"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.addEventListener("input", () => {
+        refreshCreateUserFormState();
+      });
+    });
+
     document.getElementById("createUserBtn").addEventListener("click", async () => {
       if (usersActionBusy) return;
       const username = document.getElementById("newUsername").value.trim();
       const password = document.getElementById("newPassword").value;
       const role = document.getElementById("newRole").value;
+      const validation = getCreateUserValidation();
 
-      if (!username || !password) {
-        setUsersActionMessage("Preencha usuário e senha.", true);
-        return;
-      }
-      if (password.length < 8) {
-        setUsersActionMessage("A senha precisa ter no mínimo 8 caracteres.", true);
+      if (!validation.valid) {
+        setUsersActionMessage(validation.message || "Verifique os campos para continuar.", true);
         return;
       }
 
@@ -2785,6 +2818,7 @@
       btn.innerHTML = passwordToggleIcon(false);
     });
     refreshChangePasswordFormState();
+    refreshCreateUserFormState();
 
     const allowedEnvFilters = new Set(["all", "production", "staging"]);
     if (!allowedEnvFilters.has(selectedServiceEnv)) {
