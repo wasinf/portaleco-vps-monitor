@@ -1361,6 +1361,7 @@
     let lastApiErrorAt = null;
     let lastApiErrorMessage = "";
     let usersActionBusy = false;
+    let loadDebounceHandle = null;
     const ramHistory = [];
     const trafficHistory = [];
 
@@ -2310,6 +2311,21 @@
       }
     }
 
+    const requestLoad = (delayMs = 0) => {
+      if (loadDebounceHandle) {
+        clearTimeout(loadDebounceHandle);
+        loadDebounceHandle = null;
+      }
+      if (delayMs <= 0) {
+        void load();
+        return;
+      }
+      loadDebounceHandle = setTimeout(() => {
+        loadDebounceHandle = null;
+        void load();
+      }, delayMs);
+    };
+
     async function loadUsers() {
       if (!isAdmin()) return;
       try {
@@ -2679,19 +2695,19 @@
     document.getElementById("serviceEnvFilter").addEventListener("change", (event) => {
       selectedServiceEnv = String(event.target.value || "all");
       localStorage.setItem("service_env_filter", selectedServiceEnv);
-      load();
+      requestLoad(120);
     });
 
     document.getElementById("serviceSearchInput").addEventListener("input", (event) => {
       serviceSearchTerm = String(event.target.value || "");
       localStorage.setItem("service_search_term", serviceSearchTerm);
-      load();
+      requestLoad(280);
     });
 
     document.getElementById("dockerSearchInput").addEventListener("input", (event) => {
       dockerSearchTerm = String(event.target.value || "");
       localStorage.setItem("docker_search_term", dockerSearchTerm);
-      load();
+      requestLoad(280);
     });
 
     document.addEventListener("click", (event) => {
