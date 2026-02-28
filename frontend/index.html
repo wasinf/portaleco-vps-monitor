@@ -2484,6 +2484,37 @@
       if (isSuccess) changePasswordMsgEl.classList.add("is-ok");
     };
 
+    const getChangePasswordValidation = () => {
+      const currentPassword = String(document.getElementById("currentPasswordInput")?.value || "");
+      const newPassword = String(document.getElementById("newPasswordInput")?.value || "");
+      const confirmPassword = String(document.getElementById("confirmPasswordInput")?.value || "");
+      if (!currentPassword && !newPassword && !confirmPassword) {
+        return { valid: false, message: "", showError: false };
+      }
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return { valid: false, message: "Preencha todos os campos.", showError: true };
+      }
+      if (newPassword.length < 8) {
+        return { valid: false, message: "A nova senha precisa ter no mínimo 8 caracteres.", showError: true };
+      }
+      if (newPassword !== confirmPassword) {
+        return { valid: false, message: "A confirmação da senha não confere.", showError: true };
+      }
+      return { valid: true, message: "", showError: false };
+    };
+
+    const refreshChangePasswordFormState = () => {
+      const submitBtn = document.getElementById("submitChangePasswordBtn");
+      if (!submitBtn) return;
+      const validation = getChangePasswordValidation();
+      submitBtn.disabled = !validation.valid;
+      if (validation.showError) {
+        setChangePasswordMessage(validation.message, true);
+      } else if (changePasswordMsgEl?.classList.contains("is-error")) {
+        setChangePasswordMessage("");
+      }
+    };
+
     const setUsersActionMessage = (message, isError = false, isSuccess = false) => {
       if (!usersActionMsgEl) return;
       usersActionMsgEl.textContent = message || "";
@@ -2515,6 +2546,7 @@
         btn.setAttribute("title", "Mostrar senha");
       });
       setChangePasswordMessage("");
+      refreshChangePasswordFormState();
     };
 
     const openChangePasswordModal = () => {
@@ -2588,17 +2620,10 @@
       const confirmPassword = document.getElementById("confirmPasswordInput").value;
       const submitBtn = document.getElementById("submitChangePasswordBtn");
       const originalText = submitBtn.textContent;
+      const validation = getChangePasswordValidation();
 
-      if (!currentPassword || !newPassword || !confirmPassword) {
-        setChangePasswordMessage("Preencha todos os campos.", true);
-        return;
-      }
-      if (newPassword.length < 8) {
-        setChangePasswordMessage("A nova senha precisa ter no mínimo 8 caracteres.", true);
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setChangePasswordMessage("A confirmação da senha não confere.", true);
+      if (!validation.valid) {
+        setChangePasswordMessage(validation.message || "Verifique os campos para continuar.", true);
         return;
       }
 
@@ -2623,9 +2648,17 @@
       } catch (error) {
         setChangePasswordMessage(error.message || "Falha ao alterar senha.", true);
       } finally {
-        submitBtn.disabled = false;
         submitBtn.textContent = originalText;
+        refreshChangePasswordFormState();
       }
+    });
+
+    ["currentPasswordInput", "newPasswordInput", "confirmPasswordInput"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.addEventListener("input", () => {
+        refreshChangePasswordFormState();
+      });
     });
 
     document.getElementById("createUserBtn").addEventListener("click", async () => {
@@ -2751,6 +2784,7 @@
     document.querySelectorAll("[data-pw-toggle][data-pw-icon='true']").forEach((btn) => {
       btn.innerHTML = passwordToggleIcon(false);
     });
+    refreshChangePasswordFormState();
 
     const allowedEnvFilters = new Set(["all", "production", "staging"]);
     if (!allowedEnvFilters.has(selectedServiceEnv)) {
