@@ -1360,6 +1360,7 @@
     let lastApiOkAt = null;
     let lastApiErrorAt = null;
     let lastApiErrorMessage = "";
+    let usersActionBusy = false;
     const ramHistory = [];
     const trafficHistory = [];
 
@@ -2331,9 +2332,10 @@
             "<td>" + safeRole + "</td>" +
             "<td>" + (u.active ? "<span class='st st-run'>Ativo</span>" : "<span class='st st-stop'>Inativo</span>") + "</td>" +
             "<td>" + safeUpdatedAt + "</td>" +
-            "<td><button class='mini-btn' data-user-toggle='" + safeUsernameAttr + "' data-user-active='" + (u.active ? "1" : "0") + "'>" + actionLabel + "</button></td>" +
+            "<td><button class='mini-btn' data-user-toggle='" + safeUsernameAttr + "' data-user-active='" + (u.active ? "1" : "0") + "'" + (usersActionBusy ? " disabled" : "") + ">" + actionLabel + "</button></td>" +
           "</tr>";
         }).join("") || "<tr><td colspan='5'>Sem usuários</td></tr>";
+        setUsersActionsBusy(usersActionBusy);
       } catch (error) {
         document.getElementById("usersMeta").textContent = "Erro ao carregar usuários: " + error.message;
       }
@@ -2473,6 +2475,15 @@
       if (isSuccess) usersActionMsgEl.classList.add("is-ok");
     };
 
+    const setUsersActionsBusy = (busy) => {
+      usersActionBusy = Boolean(busy);
+      const createBtn = document.getElementById("createUserBtn");
+      if (createBtn) createBtn.disabled = usersActionBusy;
+      document.querySelectorAll("#usersRows button[data-user-toggle]").forEach((btn) => {
+        btn.disabled = usersActionBusy;
+      });
+    };
+
     const resetChangePasswordForm = () => {
       const form = document.getElementById("changePasswordForm");
       if (!form) return;
@@ -2594,6 +2605,7 @@
     });
 
     document.getElementById("createUserBtn").addEventListener("click", async () => {
+      if (usersActionBusy) return;
       const username = document.getElementById("newUsername").value.trim();
       const password = document.getElementById("newPassword").value;
       const role = document.getElementById("newRole").value;
@@ -2608,6 +2620,7 @@
       }
 
       try {
+        setUsersActionsBusy(true);
         setUsersActionMessage("Criando usuário...");
         const response = await apiFetch("/api/auth/users", {
           method: "POST",
@@ -2625,17 +2638,24 @@
         await loadUsers();
       } catch (error) {
         setUsersActionMessage(error.message || "Falha ao criar usuário", true);
+      } finally {
+        setUsersActionsBusy(false);
       }
     });
 
     document.getElementById("usersRows").addEventListener("click", async (event) => {
       const btn = event.target.closest("button[data-user-toggle]");
       if (!btn) return;
+      if (usersActionBusy) return;
       const username = btn.getAttribute("data-user-toggle");
       const currentlyActive = btn.getAttribute("data-user-active") === "1";
       const nextActive = !currentlyActive;
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Aguarde...";
 
       try {
+        setUsersActionsBusy(true);
         setUsersActionMessage("Atualizando usuário...");
         const response = await apiFetch("/api/auth/users/" + encodeURIComponent(username) + "/active", {
           method: "PATCH",
@@ -2649,7 +2669,10 @@
         setUsersActionMessage("Usuário atualizado com sucesso.", false, true);
         await loadUsers();
       } catch (error) {
+        btn.textContent = originalLabel;
         setUsersActionMessage(error.message || "Falha ao atualizar usuário", true);
+      } finally {
+        setUsersActionsBusy(false);
       }
     });
 
