@@ -1272,7 +1272,7 @@
             <label for="newPassword">Senha inicial</label>
             <div class="pw-wrap">
               <input class="auth-input" id="newPassword" type="password" placeholder="mínimo 8 caracteres" />
-              <button class="pw-toggle" type="button" data-pw-toggle="newPassword">Mostrar</button>
+              <button class="pw-toggle" type="button" data-pw-toggle="newPassword" data-pw-icon="true" aria-label="Mostrar senha" title="Mostrar senha"></button>
             </div>
             <div class="field-help">Use senha forte: 8+ caracteres, maiúscula, minúscula, número e símbolo.</div>
           </div>
@@ -2735,7 +2735,7 @@
       }
     });
 
-    document.querySelectorAll("#changePasswordModal [data-pw-toggle][data-pw-icon='true']").forEach((btn) => {
+    document.querySelectorAll("[data-pw-toggle][data-pw-icon='true']").forEach((btn) => {
       btn.innerHTML = passwordToggleIcon(false);
     });
 
