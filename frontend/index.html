@@ -1362,6 +1362,7 @@
     let lastApiErrorMessage = "";
     let usersActionBusy = false;
     let loadDebounceHandle = null;
+    let lastUsersModalTrigger = null;
     const ramHistory = [];
     const trafficHistory = [];
 
@@ -2533,9 +2534,12 @@
 
     const openUsersModal = async () => {
       if (!isAdmin()) return;
+      lastUsersModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       usersModalEl.classList.add("open");
       usersModalEl.setAttribute("aria-hidden", "false");
       setUsersActionMessage("");
+      const usernameEl = document.getElementById("newUsername");
+      if (usernameEl) window.requestAnimationFrame(() => usernameEl.focus());
       await loadUsers();
     };
 
@@ -2543,6 +2547,10 @@
       usersModalEl.classList.remove("open");
       usersModalEl.setAttribute("aria-hidden", "true");
       setUsersActionMessage("");
+      if (lastUsersModalTrigger && typeof lastUsersModalTrigger.focus === "function") {
+        window.requestAnimationFrame(() => lastUsersModalTrigger.focus());
+      }
+      lastUsersModalTrigger = null;
     };
 
     document.getElementById("openUsersModalBtn").addEventListener("click", () => {
@@ -2730,8 +2738,13 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && changePasswordModalEl.classList.contains("open")) {
+      if (event.key !== "Escape") return;
+      if (changePasswordModalEl.classList.contains("open")) {
         closeChangePasswordModal();
+        return;
+      }
+      if (usersModalEl.classList.contains("open")) {
+        closeUsersModal();
       }
     });
 
