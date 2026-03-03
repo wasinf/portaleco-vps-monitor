@@ -1963,15 +1963,12 @@
       }
     };
 
+    let loginSubmitting = false;
+
     const updateLoginButtonState = () => {
-      const usernameEl = document.getElementById("usernameInput");
-      const passwordEl = document.getElementById("passwordInput");
       const btn = document.getElementById("loginBtn");
-      if (!usernameEl || !passwordEl || !btn) return;
-      const ready = String(usernameEl.value || "").trim().length > 0 && String(passwordEl.value || "").length > 0;
-      if (!btn.disabled) {
-        btn.disabled = !ready;
-      }
+      if (!btn) return;
+      btn.disabled = loginSubmitting;
     };
 
     const focusLoginField = () => {
@@ -2368,7 +2365,8 @@
         setLoginMessage("Preencha usuário e senha para continuar.", true);
         return;
       }
-      button.disabled = true;
+      loginSubmitting = true;
+      updateLoginButtonState();
       button.textContent = "Entrando...";
       setLoginMessage("Autenticando...");
 
@@ -2411,7 +2409,8 @@
         }
         focusLoginField();
       } finally {
-        button.disabled = false;
+        loginSubmitting = false;
+        updateLoginButtonState();
         button.textContent = originalButtonText;
       }
     });
